@@ -1,197 +1,167 @@
-// tracker.js — checklist state, localStorage persistence, filtering and
-// list rendering for PLATINUM ROAD. Earned trophy ids and per-trophy
-// counters live in localStorage; filters cover search, kind (story /
-// missable / collectibles / activities / online), grade and earned state.
+// tracker.js — trophy data loading plus the progress store.
+//
+// The store keeps three things: which trophies are earned, the per-trophy
+// target counters (stunts done, vaults robbed, dollars laundered…), and
+// whether the spoiler shield is up. For real visitors it persists to
+// localStorage; screenshot scenarios can swap in a transient state that is
+// never written to disk.
 
-export const EARNED_KEY = 'platinum-road-earned-v1';
-export const COUNTERS_KEY = 'platinum-road-counters-v1';
-export const SPOILER_KEY = 'platinum-road-spoiler-v1';
+const SAVE_KEY = "platinum-road-save-v1";
 
-export function loadEarnedIds() {
-  try { return new Set(JSON.parse(localStorage.getItem(EARNED_KEY) ?? '[]')); }
-  catch { return new Set(); }
+export async function loadTrophies(url = "data/trophies.json") {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Could not load the trophy list (HTTP ${res.status}).`);
+  const data = await res.json();
+  if (!data || !Array.isArray(data.trophies)) throw new Error("The trophy list file is malformed.");
+  return data.trophies;
 }
 
-export function loadCounters() {
-  try { return JSON.parse(localStorage.getItem(COUNTERS_KEY) ?? '{}'); }
-  catch { return {}; }
-}
+// Clean an untrusted save object (from localStorage or an imported file)
+// against the real trophy list. Returns a usable state, or null when the
+// shape is not a save at all.
+export function validateSave(raw, trophies) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  if (typeof raw.earned !== "object" || raw.earned === null) return null;
+  if (typeof raw.counts !== "object" || raw.counts === null) return null;
 
-export function loadSpoilerSetting() {
-  return localStorage.getItem(SPOILER_KEY) === 'on';
-}
-
-export function trophyMatchesKindFilter(trophy, kindFilter) {
-  if (kindFilter === 'all') return true;
-  if (kindFilter === 'missable') return trophy.missable === true;
-  // The official list contains no online trophies, so 'online' matches
-  // nothing and the list shows its honest empty state.
-  return Array.isArray(trophy.kinds) && trophy.kinds.includes(kindFilter);
-}
-
-export function isSpoilerMasked(trophy, earnedIds, spoilerOn) {
-  if (!spoilerOn || earnedIds.has(trophy.id)) return false;
-  const isStory = Array.isArray(trophy.kinds) && trophy.kinds.includes('story');
-  return isStory || trophy.vague === true;
-}
-
-export function displayNameFor(trophy, earnedIds, spoilerOn) {
-  const isStory = Array.isArray(trophy.kinds) && trophy.kinds.includes('story');
-  if (isSpoilerMasked(trophy, earnedIds, spoilerOn) && isStory) return 'Hidden story trophy';
-  return trophy.name;
-}
-
-export function displayDescriptionFor(trophy, earnedIds, spoilerOn) {
-  if (isSpoilerMasked(trophy, earnedIds, spoilerOn)) {
-    const isStory = Array.isArray(trophy.kinds) && trophy.kinds.includes('story');
-    return isStory
-      ? 'Hidden story trophy — earn it to reveal.'
-      : 'Hidden description — earn this trophy to reveal it.';
+  const byId = new Map(trophies.map((t) => [t.id, t]));
+  const earned = {};
+  for (const key of Object.keys(raw.earned)) {
+    const id = Number(key);
+    if (byId.has(id) && raw.earned[key]) earned[id] = true;
   }
-  return trophy.description;
+  const counts = {};
+  for (const key of Object.keys(raw.counts)) {
+    const id = Number(key);
+    const trophy = byId.get(id);
+    const value = Math.floor(Number(raw.counts[key]));
+    if (!trophy || !Number.isFinite(value) || value < 0) continue;
+    counts[id] = trophy.target ? Math.min(value, trophy.target) : value;
+  }
+  return { earned, counts, shield: raw.shield === true };
 }
 
-export function createTracker({ data, elements, onSelectTrophy, onChange }) {
-  const state = {
-    earnedIds: loadEarnedIds(),
-    counters: loadCounters(),
-    spoilerOn: loadSpoilerSetting(),
-    filters: { search: '', kind: 'all', grade: 'all', earnedState: 'all' },
-    selectedId: null,
-    persistSeeds: true,
-  };
+export function createStore(trophies) {
+  const byId = new Map(trophies.map((t) => [t.id, t]));
+  const listeners = new Set();
+  let transient = false;
+  let state = { earned: {}, counts: {}, shield: false };
 
-  function saveProgress() {
-    if (!state.persistSeeds) return;
-    localStorage.setItem(EARNED_KEY, JSON.stringify([...state.earnedIds]));
-    localStorage.setItem(COUNTERS_KEY, JSON.stringify(state.counters));
-    localStorage.setItem(SPOILER_KEY, state.spoilerOn ? 'on' : 'off');
+  try {
+    const saved = window.localStorage.getItem(SAVE_KEY);
+    if (saved) {
+      const cleaned = validateSave(JSON.parse(saved), trophies);
+      if (cleaned) state = cleaned;
+    }
+  } catch {
+    // Storage unavailable or corrupt: start fresh, stay silent.
   }
 
-  function setEarned(id, isEarned) {
-    if (isEarned) state.earnedIds.add(id); else state.earnedIds.delete(id);
-    saveProgress();
-    renderAll();
+  function persist() {
+    if (transient) return;
+    try {
+      window.localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    } catch {
+      // Private modes and full quotas should never break the tracker.
+    }
   }
 
-  function setCounter(id, value) {
-    const trophy = data.trophies.find((t) => t.id === id);
-    const max = trophy && trophy.target ? trophy.target : Number.MAX_SAFE_INTEGER;
-    state.counters[id] = Math.max(0, Math.min(max, Math.floor(Number(value) || 0)));
-    saveProgress();
+  function notify() {
+    persist();
+    for (const fn of listeners) fn();
   }
 
-  function visibleTrophies() {
-    const { search, kind, grade, earnedState } = state.filters;
-    const needle = search.trim().toLowerCase();
-    return data.trophies.filter((trophy) => {
-      if (!trophyMatchesKindFilter(trophy, kind)) return false;
-      if (grade !== 'all' && trophy.grade !== grade) return false;
-      if (earnedState === 'earned' && !state.earnedIds.has(trophy.id)) return false;
-      if (earnedState === 'unearned' && state.earnedIds.has(trophy.id)) return false;
-      if (needle) {
-        const haystack = `${trophy.name} ${trophy.description} ${trophy.kind}`.toLowerCase();
-        if (!haystack.includes(needle)) return false;
+  return {
+    trophies,
+    byId,
+
+    subscribe(fn) {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+
+    get shield() {
+      return state.shield;
+    },
+
+    setShield(on) {
+      state.shield = on === true;
+      notify();
+    },
+
+    isEarned(id) {
+      return state.earned[id] === true;
+    },
+
+    toggleEarned(id) {
+      if (state.earned[id]) delete state.earned[id];
+      else state.earned[id] = true;
+      notify();
+      return state.earned[id] === true;
+    },
+
+    setEarned(id, on) {
+      if (on) state.earned[id] = true;
+      else delete state.earned[id];
+      notify();
+    },
+
+    count(id) {
+      return state.counts[id] ?? 0;
+    },
+
+    setCount(id, value) {
+      const trophy = byId.get(id);
+      if (!trophy) return;
+      let next = Math.max(0, Math.floor(Number(value) || 0));
+      if (trophy.target) next = Math.min(next, trophy.target);
+      if (next === 0) delete state.counts[id];
+      else state.counts[id] = next;
+      notify();
+    },
+
+    earnedCount() {
+      return Object.keys(state.earned).length;
+    },
+
+    earnedOf(trophyList) {
+      return trophyList.filter((t) => state.earned[t.id]).length;
+    },
+
+    // Replace the whole state for a screenshot scenario. Transient: nothing
+    // is persisted, so a ?shot= link can never touch a visitor's real save.
+    applyScenario({ earned = [], counts = {}, shield = false }) {
+      transient = true;
+      state = {
+        earned: Object.fromEntries(earned.filter((id) => byId.has(id)).map((id) => [id, true])),
+        counts: { ...counts },
+        shield: shield === true,
+      };
+      notify();
+    },
+
+    exportJson() {
+      return JSON.stringify(
+        { app: "platinum-road", version: 1, earned: state.earned, counts: state.counts, shield: state.shield },
+        null,
+        2,
+      );
+    },
+
+    importJson(text) {
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return { ok: false, message: "That file is not valid JSON — import cancelled, your progress is untouched." };
       }
-      return true;
-    });
-  }
-
-  function renderProgressSummary() {
-    const total = data.trophies.length;
-    const earned = state.earnedIds.size;
-    const pct = total ? Math.round((earned / total) * 100) : 0;
-    elements.progressFill.style.width = `${pct}%`;
-    if (elements.roadMarker) elements.roadMarker.style.left = `${pct}%`;
-    elements.progressText.textContent = `${earned} of ${total} earned · ${pct}% of the road driven`;
-    elements.gradeCounts.replaceChildren();
-    for (const grade of ['platinum', 'gold', 'silver', 'bronze']) {
-      const inGrade = data.trophies.filter((t) => t.grade === grade);
-      const got = inGrade.filter((t) => state.earnedIds.has(t.id)).length;
-      const span = document.createElement('span');
-      span.className = 'grade-count';
-      span.textContent = `${grade.toUpperCase()} ${got}/${inGrade.length}`;
-      elements.gradeCounts.append(span);
-    }
-  }
-
-  function buildTrophyCard(trophy, index = 0) {
-    const card = document.createElement('article');
-    card.className = 'trophy-card'
-      + ` grade-${trophy.grade}`
-      + (state.earnedIds.has(trophy.id) ? ' is-earned' : '')
-      + (state.selectedId === trophy.id ? ' selected' : '');
-    // Stagger position for the checklist card entrance animation.
-    card.style.setProperty('--i', Math.min(index, 14));
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.className = 'trophy-check';
-    checkbox.checked = state.earnedIds.has(trophy.id);
-    checkbox.setAttribute('aria-label', `Mark ${trophy.name} as earned`);
-    checkbox.addEventListener('click', (event) => event.stopPropagation());
-    checkbox.addEventListener('change', () => setEarned(trophy.id, checkbox.checked));
-
-    const medallion = document.createElement('span');
-    medallion.className = `medallion ${trophy.grade}`;
-    medallion.textContent = '★';
-    medallion.title = trophy.grade;
-
-    const body = document.createElement('div');
-    body.className = 'trophy-body';
-    const masked = isSpoilerMasked(trophy, state.earnedIds, state.spoilerOn);
-    const name = document.createElement('p');
-    name.className = 'trophy-name';
-    name.textContent = displayNameFor(trophy, state.earnedIds, state.spoilerOn);
-    const desc = document.createElement('p');
-    desc.className = 'trophy-desc' + (masked ? ' masked-note' : '');
-    desc.textContent = displayDescriptionFor(trophy, state.earnedIds, state.spoilerOn);
-
-    const meta = document.createElement('div');
-    meta.className = 'trophy-meta';
-    const addChip = (text, cls) => {
-      const chip = document.createElement('span');
-      chip.className = `chip ${cls}`;
-      chip.textContent = text;
-      meta.append(chip);
-    };
-    addChip(trophy.grade, `grade-${trophy.grade}`);
-    for (const kind of trophy.kinds ?? []) addChip(kind, 'kind');
-    if (trophy.missable) addChip('⚠ Missable watch', 'missable');
-    addChip(`Stage ${trophy.stage}`, 'stage');
-    if (trophy.target) addChip(`Target ${trophy.target.toLocaleString('en-US')}`, 'target');
-    if (state.earnedIds.has(trophy.id)) addChip('Earned', 'earned-chip');
-
-    body.append(name, desc, meta);
-    card.append(checkbox, medallion, body);
-    card.addEventListener('click', () => {
-      state.selectedId = trophy.id;
-      renderList();
-      onSelectTrophy(trophy.id);
-    });
-    return card;
-  }
-
-  function renderList() {
-    const visible = visibleTrophies();
-    elements.trophyList.replaceChildren(...visible.map((trophy, index) => buildTrophyCard(trophy, index)));
-    elements.showingCount.textContent = `— showing ${visible.length} of ${data.trophies.length}`;
-    if (visible.length === 0) {
-      elements.emptyState.hidden = false;
-      elements.emptyState.textContent = state.filters.kind === 'online'
-        ? 'No online trophies: the official Grand Theft Auto VI PS5 list contains no online trophies, so this filter is honestly empty. Every one of the 55 trophies is earned offline in the list above.'
-        : 'No trophies match the current search and filters. Loosen a filter to see more of the road.';
-    } else {
-      elements.emptyState.hidden = true;
-    }
-  }
-
-  function renderAll() {
-    renderProgressSummary();
-    renderList();
-    if (state.selectedId != null) onSelectTrophy(state.selectedId, { rerenderOnly: true });
-    if (onChange) onChange();
-  }
-
-  return { state, saveProgress, setEarned, setCounter, renderAll, renderList, renderProgressSummary, visibleTrophies };
+      const cleaned = validateSave(parsed, trophies);
+      if (!cleaned) {
+        return { ok: false, message: "That file does not look like a PLATINUM ROAD save — import cancelled, your progress is untouched." };
+      }
+      state = cleaned;
+      notify();
+      return { ok: true, message: `Progress imported: ${Object.keys(cleaned.earned).length} trophies earned.` };
+    },
+  };
 }

@@ -1,111 +1,128 @@
-// guides.js — the trophy detail panel: official description, grade
-// medallion, kind chips, missable flag, target counter, the guide in our
-// own words, and the sources line that every guide must carry.
+// guides.js — the trophy detail view: official description, our guide, the
+// sources line, the missable flag and the target counter, all in one panel.
+//
+// It also owns the spoiler-shield masking rules, so cards and the detail
+// view can never disagree about what is hidden.
 
-import { displayNameFor, displayDescriptionFor, isSpoilerMasked } from './tracker.js';
+export const MASKED_NAME = "▓▓▓▓▓▓▓▓▓▓";
+export const MASKED_DESC = "Hidden by the spoiler shield — earn it, or lower the shield in the dash panel, to read it.";
 
-export function renderTrophyDetail({ panel, trophy, tracker }) {
-  const { state } = tracker;
-  const earned = state.earnedIds.has(trophy.id);
-  const masked = isSpoilerMasked(trophy, state.earnedIds, state.spoilerOn);
-  const isStory = Array.isArray(trophy.kinds) && trophy.kinds.includes('story');
-  panel.replaceChildren();
-
-  const head = document.createElement('div');
-  head.className = 'detail-head';
-  const medallion = document.createElement('span');
-  medallion.className = `medallion big ${trophy.grade}`;
-  medallion.textContent = '★';
-  const title = document.createElement('h3');
-  title.textContent = displayNameFor(trophy, state.earnedIds, state.spoilerOn);
-  head.append(medallion, title);
-  panel.append(head);
-
-  const meta = document.createElement('div');
-  meta.className = 'trophy-meta';
-  const addChip = (text, cls) => {
-    const chip = document.createElement('span');
-    chip.className = `chip ${cls}`;
-    chip.textContent = text;
-    meta.append(chip);
-  };
-  addChip(trophy.grade, `grade-${trophy.grade}`);
-  addChip(trophy.kind, 'kind');
-  for (const kind of trophy.kinds ?? []) if (kind !== trophy.kind) addChip(kind, 'kind');
-  if (trophy.missable) addChip('⚠ Missable watch', 'missable');
-  addChip(`Roadmap stage ${trophy.stage}`, 'stage');
-  panel.append(meta);
-
-  const officialTitle = document.createElement('h4');
-  officialTitle.textContent = 'Official description';
-  const official = document.createElement('p');
-  official.className = 'detail-official' + (masked ? ' masked-note' : '');
-  official.textContent = displayDescriptionFor(trophy, state.earnedIds, state.spoilerOn);
-  panel.append(officialTitle, official);
-
-  if (trophy.missable) {
-    const warning = document.createElement('p');
-    warning.className = 'detail-official';
-    warning.textContent = 'MISSABLE WATCH: flagged from the official description as a one-time mission, a concluding character strand or a one-off scene. Clear it before the final mission / point of no return.';
-    panel.append(warning);
-  }
-
-  if (trophy.target) {
-    const counterTitle = document.createElement('h4');
-    counterTitle.textContent = `Progress — ${trophy.targetLabel ?? 'target'}`;
-    const box = document.createElement('div');
-    box.className = 'counter-box';
-    const minus = document.createElement('button');
-    minus.type = 'button'; minus.textContent = '−'; minus.setAttribute('aria-label', 'Decrease count');
-    const plus = document.createElement('button');
-    plus.type = 'button'; plus.textContent = '+'; plus.setAttribute('aria-label', 'Increase count');
-    const step = trophy.target >= 1000 ? 1000 : 1;
-    const value = document.createElement('span');
-    value.className = 'counter-value';
-    const paint = () => {
-      const current = state.counters[trophy.id] ?? 0;
-      value.textContent = `${current.toLocaleString('en-US')} / ${trophy.target.toLocaleString('en-US')}`;
-    };
-    minus.addEventListener('click', () => { tracker.setCounter(trophy.id, (state.counters[trophy.id] ?? 0) - step); paint(); });
-    plus.addEventListener('click', () => { tracker.setCounter(trophy.id, (state.counters[trophy.id] ?? 0) + step); paint(); });
-    const input = document.createElement('input');
-    input.type = 'number'; input.className = 'counter-input'; input.min = '0'; input.max = String(trophy.target);
-    input.value = String(state.counters[trophy.id] ?? 0);
-    input.setAttribute('aria-label', 'Set count directly');
-    input.addEventListener('change', () => { tracker.setCounter(trophy.id, input.value); input.value = String(state.counters[trophy.id] ?? 0); paint(); });
-    paint();
-    box.append(minus, value, plus, input);
-    panel.append(counterTitle, box);
-  }
-
-  const guideTitle = document.createElement('h4');
-  guideTitle.textContent = 'Guide — in our own words';
-  const guide = document.createElement('p');
-  guide.className = 'detail-guide';
-  guide.textContent = masked
-    ? (isStory
-      ? 'Guide hidden by the spoiler shield until this story trophy is earned. Tick it off when you earn it and the full guide reveals itself.'
-      : 'Guide hidden by the spoiler shield until this trophy is earned.')
-    : trophy.guide;
-  const sources = document.createElement('p');
-  sources.className = 'detail-sources';
-  sources.textContent = trophy.sources;
-  panel.append(guideTitle, guide, sources);
-
-  const earnLabel = document.createElement('label');
-  earnLabel.className = 'detail-earn';
-  const earnBox = document.createElement('input');
-  earnBox.type = 'checkbox';
-  earnBox.checked = earned;
-  earnBox.addEventListener('change', () => tracker.setEarned(trophy.id, earnBox.checked));
-  earnLabel.append(earnBox, document.createTextNode(earned ? 'Earned — nice driving.' : 'Mark as earned'));
-  panel.append(earnLabel);
+export function isMasked(trophy, store) {
+  return store.shield && trophy.kind === "story" && !store.isEarned(trophy.id);
 }
 
-export function renderDetailPlaceholder(panel) {
-  panel.replaceChildren();
-  const note = document.createElement('p');
-  note.className = 'placeholder';
-  note.textContent = 'Pick any trophy on the road to open its guide: the official description, its target counter, the missable check and the cited guide in our own words.';
-  panel.append(note);
+export function fmt(n) {
+  return Number(n).toLocaleString("en-US");
+}
+
+function esc(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+export function gradeLabel(grade) {
+  return grade.charAt(0).toUpperCase() + grade.slice(1);
+}
+
+export function kindLabel(kind) {
+  return { story: "Story", collectibles: "Collectibles", activities: "Activities", online: "Online" }[kind] ?? kind;
+}
+
+export function counterHtml(trophy, store) {
+  if (!trophy.target) return "";
+  const value = store.count(trophy.id);
+  return (
+    `<div class="counter" data-counter="${trophy.id}">` +
+    `<button type="button" data-step="-1" aria-label="Decrease counter">−</button>` +
+    `<span class="counter-value">${fmt(value)} / ${fmt(trophy.target)}</span>` +
+    `<button type="button" data-step="1" aria-label="Increase counter">+</button>` +
+    `<span class="counter-unit">${esc(trophy.unit ?? "")}</span></div>`
+  );
+}
+
+export function wireCounter(root, store) {
+  const box = root.querySelector("[data-counter]");
+  if (!box) return;
+  const id = Number(box.dataset.counter);
+  const trophy = store.byId.get(id);
+  box.querySelectorAll("[data-step]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const dir = Number(btn.dataset.step);
+      store.setCount(id, store.count(id) + dir * (trophy.step || 1));
+    });
+  });
+}
+
+export function createDetail({ overlay, content, closeBtn, store, onOpenRoadmap }) {
+  let currentId = null;
+
+  function close() {
+    overlay.hidden = true;
+    currentId = null;
+    document.body.style.overflow = "";
+  }
+
+  function open(id) {
+    const trophy = store.byId.get(id);
+    if (!trophy) return;
+    currentId = id;
+    const masked = isMasked(trophy, store);
+    const earned = store.isEarned(id);
+
+    const tags = [
+      `<span class="tag">${esc(kindLabel(trophy.kind))}</span>`,
+      `<span class="tag">${esc(gradeLabel(trophy.grade))}</span>`,
+    ];
+    if (trophy.missable) tags.push(`<span class="tag tag-missable">Missable watch</span>`);
+    if (masked) tags.push(`<span class="tag tag-spoiler">Spoiler shielded</span>`);
+
+    content.innerHTML =
+      `<span class="mile detail-mile">MILE ${trophy.id}</span>` +
+      `<h3 class="detail-name" id="detail-name">${masked ? MASKED_NAME : esc(trophy.name)}</h3>` +
+      `<div class="detail-meta">${tags.join("")}</div>` +
+      `<p class="detail-official">Official description</p>` +
+      `<p class="detail-desc">${masked ? MASKED_DESC : esc(trophy.description)}</p>` +
+      `<p class="detail-official">The guide</p>` +
+      `<p class="detail-guide">${masked ? "The guide for this one stays under the shield too — no late-game surprises here." : esc(trophy.guide)}</p>` +
+      counterHtml(trophy, store) +
+      `<div class="detail-actions">` +
+      `<button type="button" class="earn-btn${earned ? " is-earned" : ""}" id="detail-earn">${earned ? "Earned ✓ — tap to undo" : "Stamp it earned"}</button>` +
+      `</div>` +
+      `<p class="detail-sources">Sources: ${esc(trophy.sources)}</p>`;
+
+    wireCounter(content, store);
+    content.querySelector("#detail-earn").addEventListener("click", () => {
+      store.toggleEarned(id);
+      open(id); // re-render in place with the new state
+    });
+
+    overlay.hidden = false;
+    document.body.style.overflow = "hidden";
+    closeBtn.focus();
+  }
+
+  closeBtn.addEventListener("click", close);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) close();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !overlay.hidden) close();
+  });
+
+  // When the store changes while a detail is open (counter steppers, the
+  // earn button), refresh the panel so it never shows stale numbers.
+  store.subscribe(() => {
+    if (currentId !== null && !overlay.hidden) {
+      const id = currentId;
+      const active = document.activeElement;
+      open(id);
+      if (active && active.id === "detail-close") closeBtn.focus();
+    }
+  });
+
+  return { open, close, onOpenRoadmap };
 }

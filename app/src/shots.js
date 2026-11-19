@@ -1,65 +1,59 @@
-// shots.js — deterministic ?shot= modes used for the entry screenshots.
-// Each mode seeds an earned set and counters, sets filters / the spoiler
-// shield, and opens a panel, so a screenshot always shows the same state:
-//   ?shot=checklist  cover: top of page — masthead, progress, controls,
-//                    earned trophies and a guide open beside the list
-//   ?shot=roadmap    the roadmap section scrolled into view
-//   ?shot=guide      a rich guide detail open (The Shootist, target 42)
-//   ?shot=spoiler    top of page with the spoiler shield ON (toggle
-//                    visible) and masked story trophies
+// shots.js — the ?shot= screenshot scenarios.
+//
+// Each mode swaps a prepared, transient state into the store (never saved,
+// so a shared ?shot= link cannot touch a real visitor's progress) and then
+// frames the view the hand-in screenshot needs: the checklist from the top,
+// the roadmap signs, one open guide, or the spoiler shield doing its job.
 
-export function applyShotMode({ tracker, elements, selectTrophy }) {
-  const mode = new URLSearchParams(window.location.search).get('shot');
-  if (!mode) return null;
-  // Freeze all motion at its clean end state for the capture: the CSS
-  // kills animations/transitions under this class and forces animated
-  // elements (roadmap signs included) into their final state.
-  document.body.classList.add('shot-mode');
-  const { state } = tracker;
+export function readShotMode() {
+  return new URLSearchParams(window.location.search).get("shot");
+}
 
-  const seed = (earnedIds, counters) => {
-    state.earnedIds = new Set(earnedIds);
-    Object.assign(state.counters, counters);
-  };
+function settle(fn, delay = 90) {
+  window.setTimeout(fn, delay);
+}
 
-  const scrollToLayout = () => window.setTimeout(() => {
-    document.querySelector('.layout')?.scrollIntoView({ block: 'start' });
-  }, 350);
-
-  // Cover + spoiler shots are framed at the TOP of the page so the
-  // masthead, progress bar, control row (search / filters / spoiler
-  // toggle / export / import) are visible in the capture. The compact
-  // class tightens the masthead and control spacing for shot modes
-  // only, so the first checklist rows still fit in the frame.
-  const frameAtTop = () => {
-    document.body.classList.add('shot-compact');
-    window.setTimeout(() => window.scrollTo(0, 0), 350);
-  };
-
-  if (mode === 'checklist') {
-    seed([2, 3, 4, 8, 15, 25], { 15: 140, 25: 5 });
-    selectTrophy(15);
-    frameAtTop();
-  } else if (mode === 'roadmap') {
-    seed([2, 3, 8, 22], {});
-    window.setTimeout(() => {
-      document.getElementById('roadmap')?.scrollIntoView({ block: 'start' });
-    }, 350);
-  } else if (mode === 'guide') {
-    seed([2, 3, 8], { 17: 30 });
-    selectTrophy(17);
-    scrollToLayout();
-  } else if (mode === 'spoiler') {
-    state.spoilerOn = true;
-    elements.spoilerToggle.checked = true;
-    state.filters.kind = 'collectibles';
-    elements.kindFilter.value = 'collectibles';
-    // Open an unearned story trophy in the detail pane: with the shield
-    // on it shows fully masked, beside the filtered collectibles list.
-    // Framed at the top so the spoiler toggle reads ON in the capture.
-    selectTrophy(3);
-    frameAtTop();
+export function applyShotMode(mode, { store, openDetail }) {
+  // Compact framing so the top of the page and the checklist share the
+  // 1280x720 screenshot (see the .in-shot rules in style.css).
+  document.documentElement.classList.add("in-shot");
+  switch (mode) {
+    case "checklist": {
+      store.applyScenario({
+        earned: [2, 3, 4, 5, 8, 9, 16, 21],
+        counts: { 15: 86, 31: 23, 35: 41 },
+        shield: false,
+      });
+      settle(() => window.scrollTo(0, 0));
+      break;
+    }
+    case "roadmap": {
+      store.applyScenario({
+        earned: [2, 3, 4, 5, 6, 8, 22],
+        counts: { 28: 6 },
+        shield: false,
+      });
+      settle(() => {
+        document.getElementById("roadmap-sec")?.scrollIntoView({ block: "start" });
+      });
+      break;
+    }
+    case "guide": {
+      // The Shootist: silver, with its 42-gold counter part-filled at 27.
+      store.applyScenario({
+        earned: [2, 3],
+        counts: { 17: 27 },
+        shield: false,
+      });
+      settle(() => openDetail(17), 140);
+      break;
+    }
+    case "spoiler": {
+      store.applyScenario({ earned: [], counts: {}, shield: true });
+      settle(() => window.scrollTo(0, 0));
+      break;
+    }
+    default:
+      break;
   }
-  tracker.renderAll();
-  return mode;
 }

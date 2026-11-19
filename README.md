@@ -1,43 +1,48 @@
-[![make.fun · gta6-trophy-guide-01](https://make.fun/badge/gta6-trophy-guide-01.svg)](https://make.fun/bounty/gta6-trophy-guide-01)
-[![rank](https://make.fun/badge/gta6-trophy-guide-01/alvaschul/makefun-gta6-trophy-guide-01/rank.svg)](https://make.fun/bounty/gta6-trophy-guide-01/leaderboard)
-[![reward](https://make.fun/badge/gta6-trophy-guide-01/alvaschul/makefun-gta6-trophy-guide-01/reward.svg)](https://make.fun/bounty/gta6-trophy-guide-01)
+[![Competition](https://make.fun/api/competitions/gta6-trophy-guide-01/badge.svg)](https://make.fun/bounty/gta6-trophy-guide-01) [![make.fun](https://make.fun/badge.svg)](https://make.fun) [![Entries](https://make.fun/api/competitions/gta6-trophy-guide-01/entries/badge.svg)](https://make.fun/bounty/gta6-trophy-guide-01)
 
-# PLATINUM ROAD — Leonida Trophy Guide & Tracker
+# PLATINUM ROAD · Vice Night Highway
 
-An offline, static web app that guides and tracks all **55 Grand Theft Auto VI PlayStation 5 trophies** (1 platinum, 2 gold, 6 silver, 46 bronze) on the road to the platinum. Vanilla JS and CSS only — no libraries, no network requests, no Rockstar logos, artwork or fonts. The look is an original "Vice Night Highway" design: a glowing neon roadside sign (Anton + Yellowtail lettering, vendored under the SIL OFL) over a retro sunset band with palm silhouettes, progress driven along a neon road, mile-marker trophy cards with chunky grade coins, highway-sign roadmap stages and a chunky dash panel of controls — with neon flicker-in, crawling road dashes and shine-sweep motion throughout (all frozen clean in screenshots, and off under prefers-reduced-motion).
+A trophy guide and progress tracker for **Grand Theft Auto VI on PlayStation 5**, styled as a neon roadside sign on a night drive through Leonida. It covers the full official list — all **55 trophies (1 platinum · 2 gold · 6 silver · 46 bronze)** — and works completely offline as a plain static web app: no build step, no accounts, no network calls. Your progress lives in your own browser's local storage.
 
-## What it does
+This is an entry to the make.fun bounty [gta6-trophy-guide-01](https://make.fun/bounty/gta6-trophy-guide-01).
 
-- **Tracker & data** — all 55 trophies with their exact official name, description and grade. A checklist whose progress is saved in `localStorage`, a progress bar with counts by grade, per-trophy target counters (250 stunts, 42 range challenges, 100 WAiNK locations, $250,000 laundered, and more), search, filters by kind (story / missable / collectibles / activities / online), by grade and by earned state, plus export of progress to a JSON file and import back. The official list contains no online trophies, and the Online filter says so honestly in its empty state.
-- **Spoiler shield** — a toggle that hides the names and descriptions of story trophies (and the descriptions of vague, hidden-style trophies) until each is earned.
-- **Roadmap to the platinum** — six ordered stages built from the official descriptions: story chapters and named missions; stranger strands and character finales; collectibles and Leonida-wide counts; activities and mastery; heists, scores and money; then 100% completion and the platinum.
-- **Missable watch** — a conservative, honestly labelled set of 15 trophies flagged from their official descriptions (one-time named missions, character *final* missions, and one-off scenes), with the method stated in the app: flags are precautionary, so clear them before the final mission / point of no return. A dedicated Missable filter lists them.
-- **Cited guidance** — every trophy carries a guide in our own words (what to do, how, when it can be missed, and its count/target) with a sources line naming its sources. No specific location or step is presented as fact beyond what the official descriptions support.
+## What is inside
 
-## Run it
+- **The checklist** — every trophy as a mile-marker card. Stamp a card earned with its marker button, watch the neon road progress bar fill, and see counts overall and per grade.
+- **Guides in plain words** — each trophy carries a short, practical guide written for this app, plus the official description and a sources line.
+- **Filters and search** — narrow the list by kind (story / collectibles / activities / online), by grade, by earned state, by missable flags, or by free-text search.
+- **Target counters** — grind trophies (250 stunts, 42 range golds, 100 WAiNK spots, $250,000 laundered…) get steppers so you can track the long miles between sessions.
+- **Spoiler shield** — flip one switch and every unearned story trophy is masked, so you can browse the list without reading a single late-game surprise.
+- **The roadmap** — a six-stage route to the platinum drawn as highway exit signs: story first, then character strands, collectibles, the activity grind, and the final mile.
+- **Missable watch** — a precautionary list of trophies whose official descriptions sound one-time (named story missions, characters' final missions, one-off scenes), flagged from the wording of the descriptions themselves. When in doubt, keep a save before story missions.
+- **Export / import** — take your progress with you as a small JSON file and restore it on another browser or device.
+- **Sources** — the trophy list is the official PS5 list, cross-checked on Exophase and PSNProfiles; the app names its sources on every trophy and in its Sources section.
 
-```sh
-node serve.ts            # serves app/ on http://localhost:8080
-node serve.ts --port 8091
-```
+## Run it locally
 
-Then open the printed URL. Progress is stored in your browser only.
-
-Deterministic screenshot states are available via `?shot=checklist`, `?shot=roadmap`, `?shot=guide` and `?shot=spoiler`.
-
-## Sources
-
-Official names, descriptions, grades and tracked counts are cross-checked against:
-
-- Exophase — <https://www.exophase.com/game/grand-theft-auto-vi-psn/trophies/>
-- PSNProfiles — <https://psnprofiles.com/trophies/43531-grand-theft-auto-vi>
-
-Links open only when clicked; the app itself fetches nothing.
-
-## Hand-in
+You need Node.js 22 or newer. From this folder:
 
 ```sh
-mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+node serve.ts
 ```
 
-This copies `app/` and `screenshots/` to `out/` and writes `out/dossier.json` with the vendored make.fun library.
+Then open the address it prints (http://127.0.0.1:8080) in a browser. Everything runs on your machine; nothing is uploaded anywhere.
+
+## Build the hand-in
+
+```sh
+MAKEFUN_OUTPUT_DIR=out node main.ts
+```
+
+That copies `app/` and `screenshots/` into `out/` and writes `out/dossier.json` describing them, using the vendored make.fun frontend library in `vendor/`. Without `MAKEFUN_OUTPUT_DIR` the output goes to `/output`.
+
+## Layout
+
+- `app/` — the web app: `index.html`, `style.css`, `data/trophies.json` (the 55 trophies, their kinds, guides, counters and flags) and `src/` (plain ES modules: tracker store, detail guides, roadmap, shot modes, motion).
+- `app/fonts/` — Anton and Yellowtail, vendored as woff2 with their SIL Open Font License texts, so the signs render identically offline.
+- `screenshots/` — the four hand-in screenshots described in `shots.json`.
+- `main.ts` — the hand-in builder described above. `serve.ts` — a tiny local server for previewing the app.
+
+## Data honesty
+
+The game is not out yet, so the guides are written from the official trophy descriptions: what each description states, and what it plainly implies. Anything the descriptions leave vague is flagged as vague in the guide rather than filled in with invented specifics. The missable flags are a precaution derived from description wording, not inside knowledge.

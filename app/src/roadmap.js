@@ -1,72 +1,86 @@
-// roadmap.js — the six-stage Roadmap to the Platinum, ordered from the
-// official descriptions: chapters and named missions first, stranger
-// strands and character finales second, the Leonida-wide collectible
-// counts third, activities and mastery fourth, heists, scores and money
-// fifth, and 100% completion plus the platinum last.
+// roadmap.js — the six-stage route to the platinum, drawn as highway signs.
+//
+// The stages are an editorial order, not the game's: story first so nothing
+// one-time is left behind, character strands before the endgame, then the
+// collectible miles, the long activity grind, and the final mile.
 
-export const ROADMAP_STAGES = [
+export const STAGES = [
   {
-    stage: 1,
-    title: 'Story — Chapters 1–4 & First Missions',
-    description: 'Drive the main story through Chapters 1–4 and the named early missions (Gone Fishing, Breakfast Run, Child’s Play, Headliners). Take the one-off Ocean Beach scene while the story puts you there.',
+    exit: "EXIT 1",
+    name: "Opening Miles",
+    blurb:
+      "Start where the game starts: the opening mission and the four story chapters. Nothing here needs side content — just drive the story and let the map open up around you.",
+    ids: [2, 3, 4, 5, 6],
   },
   {
-    stage: 2,
-    title: 'Stranger Strands & Character Finales',
-    description: 'Complete 8 stranger strands across Leonida and finish each character’s final mission — Andy, Kenton, Billy, Randy and Tyrone — plus Bret’s unique-animal hunt. These finales conclude, so finish them before the endgame.',
+    exit: "EXIT 2",
+    name: "Named Jobs & Heists",
+    blurb:
+      "The named set-pieces — Breakfast Run, The Cartel Heist, Child's Play, Headliners, VCIA Takedown and Operation Savage Glory. Each happens once, so keep a save before you roll into them.",
+    ids: [8, 9, 10, 11, 12, 13],
   },
   {
-    stage: 3,
-    title: 'Collectibles & Leonida-Wide Counts',
-    description: 'The state-wide sweeps: 3 card sets, WAiNK at 100 locations, 18 meditation spots, 100 vehicles discovered, all 52 areas of Leonida explored and 10 vehicles registered to the Scooter Bros app.',
+    exit: "EXIT 3",
+    name: "Strangers & Final Favours",
+    blurb:
+      "The strands of Andy, Kenton, Billy, Randy and Tyrone, plus eight stranger strands in total. These finales are the classic missables — clear them before the endgame closes the road.",
+    ids: [22, 23, 24, 25, 26, 27],
   },
   {
-    stage: 4,
-    title: 'Activities & Mastery',
-    description: 'Ranges, races and stunts: gold in all 42 Shooting Range challenges, 250 stunts, drone-race wins at 14 locations, 20 different races won, 50 challenges, every activity type tried once, plus fishing, arcade and bowling detours.',
+    exit: "EXIT 4",
+    name: "Collect the Coast",
+    blurb:
+      "Meditation spots, card sets, WAiNK spots, a hundred discovered vehicles and every corner of Leonida. Slow miles, best driven while the story breathes between chapters.",
+    ids: [28, 30, 31, 35, 42],
   },
   {
-    stage: 5,
-    title: 'Heists, Scores & Money',
-    description: 'The paying work: The Cartel Heist, VCIA Takedown and Operation Savage Glory, 5 bank vaults, an armored truck, one illegal operation per gang, partner robberies and escapes — and the money totals, $250,000 laundered and $100,000 spent, with all 8 garages bought.',
+    exit: "EXIT 5",
+    name: "The Long Grind",
+    blurb:
+      "Stunts, ranges, races, robberies, challenges and the money trophies — plus every one-off feat. The longest exit on the highway; pace it with the counters on each card.",
+    ids: [15, 16, 17, 18, 19, 20, 21, 29, 32, 33, 34, 36, 37, 38, 39, 40, 41, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55],
   },
   {
-    stage: 6,
-    title: '100% Completion & The Platinum',
-    description: 'Close the run out: the choice count and the vague late-game trophies resolve across a full playthrough, then attain 100% completion, complete the final mission — only with the MISSABLE WATCH list clear — and collect the platinum, Vice Got a Price!',
+    exit: "EXIT 6",
+    name: "The Final Mile",
+    blurb:
+      "The final mission, 100% completion, and the platinum itself. Make a backup save, take the last exit, and the big sign lights up.",
+    ids: [7, 14, 1],
   },
 ];
 
-export function renderRoadmap({ container, data, tracker, onSelectTrophy }) {
-  container.replaceChildren();
-  for (const stageInfo of ROADMAP_STAGES) {
-    const card = document.createElement('article');
-    card.className = 'stage-card';
-    const heading = document.createElement('h3');
-    const badge = document.createElement('span');
-    badge.className = 'stage-no';
-    badge.textContent = String(stageInfo.stage);
-    heading.append(badge, document.createTextNode(stageInfo.title));
-    const desc = document.createElement('p');
-    desc.className = 'stage-desc';
-    desc.textContent = stageInfo.description;
-    const chips = document.createElement('div');
-    chips.className = 'stage-trophies';
-    for (const trophy of data.trophies.filter((t) => t.stage === stageInfo.stage)) {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'stage-trophy' + (tracker.state.earnedIds.has(trophy.id) ? ' done' : '');
-      chip.textContent = trophy.name;
-      if (trophy.missable) {
-        const flag = document.createElement('span');
-        flag.className = 'flag';
-        flag.textContent = ' ⚠ MISSABLE';
-        chip.append(flag);
-      }
-      chip.addEventListener('click', () => onSelectTrophy(trophy.id, { scrollToList: true }));
-      chips.append(chip);
-    }
-    card.append(heading, desc, chips);
-    container.append(card);
-  }
+function esc(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+export function renderRoadmap(container, store, onOpen, animate = false) {
+  container.innerHTML = STAGES.map((stage) => {
+    const trophies = stage.ids.map((id) => store.byId.get(id)).filter(Boolean);
+    const done = trophies.filter((t) => store.isEarned(t.id)).length;
+    const pct = trophies.length ? Math.round((done / trophies.length) * 100) : 0;
+    const chips = trophies
+      .map(
+        (t) =>
+          `<button type="button" class="chip${store.isEarned(t.id) ? " done" : ""}" data-open="${t.id}">` +
+          `<span class="grade-dot" style="background:var(--${t.grade});box-shadow:0 0 6px var(--${t.grade})"></span>${esc(t.name)}</button>`,
+      )
+      .join("");
+    return (
+      `<article class="stage${animate ? " reveal" : ""}">` +
+      `<div class="stage-head"><span class="stage-exit">${stage.exit}</span>` +
+      `<h3 class="stage-name">${esc(stage.name)}</h3></div>` +
+      `<p class="stage-blurb">${esc(stage.blurb)}</p>` +
+      `<div class="stage-progress"><div class="stage-bar"><div class="stage-bar-fill" style="width:${pct}%"></div></div>` +
+      `<span>${done}/${trophies.length} earned</span></div>` +
+      `<div class="stage-chips">${chips}</div></article>`
+    );
+  }).join("");
+
+  container.querySelectorAll("[data-open]").forEach((chip) => {
+    chip.addEventListener("click", () => onOpen(Number(chip.dataset.open)));
+  });
 }

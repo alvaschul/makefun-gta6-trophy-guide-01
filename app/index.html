@@ -3,65 +3,97 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PLATINUM ROAD — Leonida Trophy Guide &amp; Tracker · GTA VI (PS5)</title>
+<title>PLATINUM ROAD · Vice Night Highway — GTA VI Trophy Guide &amp; Tracker</title>
+<meta name="description" content="A neon roadside-sign trophy guide and tracker for Grand Theft Auto VI on PS5: all 55 trophies, a six-stage roadmap, a missable watch and a spoiler shield. Works offline; progress stays in your browser.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
 <header class="masthead">
-  <div class="sunset-band" aria-hidden="true">
-    <svg class="palms" viewBox="0 0 1200 118" preserveAspectRatio="xMidYMax slice" focusable="false">
-      <defs>
-        <g id="palm">
-          <path class="palm-trunk" d="M0,118 C4,84 6,58 -4,30" />
-          <path class="palm-frond" d="M-4,30 C-26,16 -44,14 -60,20" />
-          <path class="palm-frond" d="M-4,30 C-20,8 -34,2 -50,-2" />
-          <path class="palm-frond" d="M-4,30 C-6,10 -14,-2 -24,-10" />
-          <path class="palm-frond" d="M-4,30 C10,10 22,2 38,-2" />
-          <path class="palm-frond" d="M-4,30 C16,16 34,14 50,20" />
-          <path class="palm-frond" d="M-4,30 C4,44 2,58 -6,72" />
+  <div class="sunset" aria-hidden="true">
+    <svg class="palms" viewBox="0 0 1440 130" preserveAspectRatio="xMidYMax slice" focusable="false">
+      <g class="palm" transform="translate(120 130)">
+        <path class="trunk" d="M0 0 C 5 -34 7 -62 2 -96" />
+        <g class="fronds">
+          <path d="M2 -96 C -16 -108 -34 -106 -46 -94" />
+          <path d="M2 -96 C -10 -114 -28 -120 -44 -114" />
+          <path d="M2 -96 C 4 -116 16 -124 32 -120" />
+          <path d="M2 -96 C 18 -108 36 -106 48 -94" />
+          <path d="M2 -96 C 20 -100 34 -94 44 -80" />
         </g>
-      </defs>
-      <use href="#palm" transform="translate(88,6) scale(0.92)" />
-      <use href="#palm" transform="translate(238,26) scale(0.62)" />
-      <use href="#palm" transform="translate(1012,10) scale(0.98)" />
-      <use href="#palm" transform="translate(1136,30) scale(0.6)" />
+        <circle cx="-3" cy="-92" r="4" />
+        <circle cx="7" cy="-90" r="3.4" />
+      </g>
+      <g class="palm" transform="translate(1330 130) scale(-1.25 1.25)">
+        <path class="trunk" d="M0 0 C 5 -34 7 -62 2 -96" />
+        <g class="fronds">
+          <path d="M2 -96 C -16 -108 -34 -106 -46 -94" />
+          <path d="M2 -96 C -10 -114 -28 -120 -44 -114" />
+          <path d="M2 -96 C 4 -116 16 -124 32 -120" />
+          <path d="M2 -96 C 18 -108 36 -106 48 -94" />
+          <path d="M2 -96 C 20 -100 34 -94 44 -80" />
+        </g>
+        <circle cx="-3" cy="-92" r="4" />
+        <circle cx="7" cy="-90" r="3.4" />
+      </g>
+      <g class="palm small" transform="translate(660 130) scale(0.62)">
+        <path class="trunk" d="M0 0 C 5 -34 7 -62 2 -96" />
+        <g class="fronds">
+          <path d="M2 -96 C -16 -108 -34 -106 -46 -94" />
+          <path d="M2 -96 C -10 -114 -28 -120 -44 -114" />
+          <path d="M2 -96 C 4 -116 16 -124 32 -120" />
+          <path d="M2 -96 C 18 -108 36 -106 48 -94" />
+          <path d="M2 -96 C 20 -100 34 -94 44 -80" />
+        </g>
+      </g>
     </svg>
   </div>
-  <div class="masthead-inner">
-    <div class="sign">
-      <p class="kicker">GRAND THEFT AUTO VI · PLAYSTATION 5 · 55 TROPHIES</p>
-      <h1 id="signTitle">PLATINUM ROAD</h1>
-      <p class="sign-script">Vice Night Highway</p>
-      <p class="tagline">The Leonida trophy guide &amp; tracker — every trophy, a roadmap to the platinum, and the missables flagged before the point of no return.</p>
-    </div>
-    <div class="neon-road" aria-hidden="true">
-      <div class="road-dashes"></div>
-      <div id="roadMarker" class="road-marker"></div>
-    </div>
-    <div class="progress-wrap">
-      <div class="progress-bar" role="progressbar" aria-label="Trophies earned"><div id="progressFill" class="progress-fill"></div></div>
-      <p id="progressText" class="progress-text">0 of 55 earned · 0%</p>
-    </div>
-    <div id="gradeCounts" class="grade-counts"></div>
+
+  <div class="sign" id="sign">
+    <p class="sign-script">Vice Night Highway</p>
+    <h1 class="sign-title">PLATINUM&nbsp;ROAD</h1>
+    <p class="sign-sub">Grand Theft Auto VI · PS5 Trophy Guide &amp; Tracker</p>
+    <p class="sign-note">All 55 trophies — 1 platinum · 2 gold · 6 silver · 46 bronze</p>
   </div>
 </header>
 
-<section class="controls" aria-label="Tracker controls">
-  <label class="ctl ctl-search">Search
-    <input id="searchInput" type="search" placeholder="Search trophies…" autocomplete="off">
+<section class="progress-block" aria-label="Overall progress">
+  <div class="progress-head">
+    <span id="progress-label">0 of 55 trophies earned</span>
+    <span id="progress-pct">0%</span>
+  </div>
+  <div class="road" role="progressbar" aria-label="Trophies earned" aria-valuemin="0" aria-valuemax="55" aria-valuenow="0" id="road-bar">
+    <div class="road-fill" id="road-fill"></div>
+    <span class="road-tick" style="left:25%"></span>
+    <span class="road-tick" style="left:50%"></span>
+    <span class="road-tick" style="left:75%"></span>
+  </div>
+  <ul class="grade-counts">
+    <li class="g-platinum"><span class="grade-dot"></span>Platinum <strong id="count-platinum">0/1</strong></li>
+    <li class="g-gold"><span class="grade-dot"></span>Gold <strong id="count-gold">0/2</strong></li>
+    <li class="g-silver"><span class="grade-dot"></span>Silver <strong id="count-silver">0/6</strong></li>
+    <li class="g-bronze"><span class="grade-dot"></span>Bronze <strong id="count-bronze">0/46</strong></li>
+  </ul>
+</section>
+
+<nav class="dash" aria-label="Tracker controls">
+  <label class="dash-field dash-search">
+    <span>Search</span>
+    <input type="search" id="search" placeholder="Try “heist”, “cards”, “Cal”…" autocomplete="off">
   </label>
-  <label class="ctl">Kind
-    <select id="kindFilter">
+  <label class="dash-field">
+    <span>Kind</span>
+    <select id="filter-kind">
       <option value="all">All kinds</option>
       <option value="story">Story</option>
-      <option value="missable">Missable watch</option>
       <option value="collectibles">Collectibles</option>
       <option value="activities">Activities</option>
       <option value="online">Online</option>
     </select>
   </label>
-  <label class="ctl">Grade
-    <select id="gradeFilter">
+  <label class="dash-field">
+    <span>Grade</span>
+    <select id="filter-grade">
       <option value="all">All grades</option>
       <option value="platinum">Platinum</option>
       <option value="gold">Gold</option>
@@ -69,48 +101,83 @@
       <option value="bronze">Bronze</option>
     </select>
   </label>
-  <label class="ctl">State
-    <select id="stateFilter">
-      <option value="all">Earned + unearned</option>
-      <option value="earned">Earned only</option>
-      <option value="unearned">Not yet earned</option>
+  <label class="dash-field">
+    <span>Earned</span>
+    <select id="filter-state">
+      <option value="all">All trophies</option>
+      <option value="earned">Earned</option>
+      <option value="unearned">Not yet</option>
     </select>
   </label>
-  <label class="ctl ctl-toggle">Spoiler shield
-    <span class="toggle-row"><input id="spoilerToggle" type="checkbox"> <span>Hide story trophies until earned</span></span>
+  <label class="dash-switch">
+    <input type="checkbox" id="filter-missable">
+    <span class="switch-track" aria-hidden="true"></span>
+    <span class="switch-label">Missable watch</span>
   </label>
-  <div class="ctl ctl-buttons">
-    <button id="exportButton" type="button">Export progress</button>
-    <label class="import-label">Import progress <input id="importInput" type="file" accept="application/json,.json"></label>
+  <label class="dash-switch">
+    <input type="checkbox" id="shield">
+    <span class="switch-track" aria-hidden="true"></span>
+    <span class="switch-label">Spoiler shield</span>
+  </label>
+  <div class="dash-buttons">
+    <button type="button" id="export-btn" class="dash-btn">Export progress</button>
+    <label class="dash-btn" for="import-file">Import progress</label>
+    <input type="file" id="import-file" accept="application/json,.json" hidden>
   </div>
-</section>
+  <p class="dash-hint">Tap a card's mile marker to stamp it earned — tap the card itself to open its guide. Progress saves itself in this browser.</p>
+</nav>
 
-<p class="method-note"><strong>How the MISSABLE WATCH flags work:</strong> the flags are precautionary. They are built only from the official trophy descriptions — trophies tied to one-time named story missions, to a character's <em>final</em> mission, or to one-off scenes are flagged so you clear them as you go. Clear every flagged trophy before the final mission / point of no return.</p>
-
-<main class="layout">
-  <section class="list-pane" aria-label="Trophy checklist">
-    <h2 class="pane-title">Trophy checklist <span id="showingCount" class="showing-count"></span></h2>
-    <div id="trophyList" class="trophy-list"></div>
-    <p id="emptyState" class="empty-state" hidden></p>
+<main>
+  <section id="checklist-sec" aria-label="Trophy checklist">
+    <div class="section-head">
+      <h2 class="section-title">The Checklist</h2>
+      <p id="result-count" class="result-count"></p>
+    </div>
+    <div id="grid" class="grid"></div>
+    <p id="empty-state" class="empty-state" hidden></p>
   </section>
-  <aside id="detailPanel" class="detail-pane" aria-label="Trophy guide detail"></aside>
+
+  <section id="roadmap-sec" aria-label="Roadmap to the platinum">
+    <div class="section-head">
+      <h2 class="section-title">The Roadmap</h2>
+      <p class="result-count">Six exits to the platinum — take them in order.</p>
+    </div>
+    <div id="roadmap" class="roadmap"></div>
+  </section>
+
+  <section id="missable-sec" aria-label="Missable watch">
+    <div class="section-head">
+      <h2 class="section-title">Missable Watch</h2>
+      <p class="result-count" id="missable-count"></p>
+    </div>
+    <p class="method-note">These flags are a precaution, not inside knowledge: each one was flagged from the wording of the official descriptions — a named one-time story mission, a character's <em>final</em> mission, a choice, or a one-off scene. When in doubt, keep a save before story missions, and finish character strands before the endgame.</p>
+    <ul id="missable-list" class="missable-list"></ul>
+  </section>
+
+  <section id="sources-sec" aria-label="Sources">
+    <div class="section-head">
+      <h2 class="section-title">Sources</h2>
+    </div>
+    <p class="method-note">The trophy names, descriptions and grades in this guide are the official Grand Theft Auto VI PlayStation 5 list, cross-checked against the two public trackers that publish it:</p>
+    <ul class="sources-list">
+      <li><strong>Exophase</strong> — Grand Theft Auto VI (PS5) trophy list.</li>
+      <li><strong>PSNProfiles</strong> — Grand Theft Auto VI (PS5) trophy list.</li>
+    </ul>
+    <p class="method-note">Everything else here — the kinds, the roadmap, the counters, the missable flags and the guides — is this app's own work, written from those official descriptions. The game is not out yet, so where a description is vague, the guide says so instead of inventing specifics.</p>
+  </section>
 </main>
 
-<section id="roadmap" class="roadmap" aria-label="Roadmap to the platinum">
-  <h2>Roadmap to the Platinum</h2>
-  <p class="roadmap-intro">Six stages, in the order to drive them. Story first, strands and finales next, then the Leonida-wide counts, mastery, scores and money — and the final mission only when the MISSABLE WATCH list is clear.</p>
-  <div id="roadmapStages" class="roadmap-stages"></div>
-</section>
+<footer class="footer">
+  <p class="footer-script">See you at the platinum.</p>
+  <p>PLATINUM ROAD · Vice Night Highway — an unofficial fan guide. Not affiliated with Rockstar Games or Take-Two Interactive. Progress is stored only in your browser.</p>
+</footer>
 
-<section class="sources" aria-label="Sources">
-  <h2>Sources</h2>
-  <p>Official names, descriptions, grades and tracked counts are cross-checked against the published PS5 trophy lists below. Every guide in this app is written in our own words and cites these sources beside the trophy. Links open only when you click them; the app itself fetches nothing and works fully offline.</p>
-  <ul>
-    <li><a href="https://www.exophase.com/game/grand-theft-auto-vi-psn/trophies/" rel="noopener">Exophase — Grand Theft Auto VI (PSN) trophies</a></li>
-    <li><a href="https://psnprofiles.com/trophies/43531-grand-theft-auto-vi" rel="noopener">PSNProfiles — Grand Theft Auto VI trophies</a></li>
-  </ul>
-  <p class="fineprint">PLATINUM ROAD is an unofficial fan guide. It uses no Rockstar Games logos, artwork or fonts; the look is an original neon roadside night-drive design, drawn in CSS and SVG, with display lettering in Anton and Yellowtail (SIL Open Font License 1.1, vendored under app/fonts/).</p>
-</section>
+<div id="detail-overlay" class="detail-overlay" hidden>
+  <div class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="detail-name">
+    <button type="button" id="detail-close" class="detail-close" aria-label="Close trophy detail">×</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
 
 <script type="module" src="src/main.js"></script>
 </body>
