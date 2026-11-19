@@ -1,264 +1,236 @@
-// main.js — boot and wiring for PLATINUM ROAD.
-//
-// Loads the trophy list, builds the store, renders the progress road, the
-// checklist, the roadmap and the missable watch, and wires the dash panel:
-// search, the kind / grade / earned filters, the missable and spoiler
-// switches, and progress export / import.
+// main.js — ignition. Boots the tracker: loads the data, paints the
+// road, the watch, the roadmap and the checklist, then keeps every
+// panel honest whenever the save changes.
 
-import { loadTrophies, createStore } from "./tracker.js";
+import {
+  loadTrophies,
+  loadSave,
+  allTrophies,
+  isEarned,
+  getCount,
+  toggleEarned,
+  spoilerOn,
+  setSpoiler,
+  progress,
+  subscribe,
+  exportSave,
+  importSave,
+} from "./tracker.js";
+import {
+  GRADE_LABEL,
+  KIND_LABEL,
+  displayName,
+  displayDesc,
+  firstSentence,
+  isMasked,
+  openDetail,
+  wireDetail,
+  refreshDetail,
+} from "./guides.js";
 import { renderRoadmap } from "./roadmap.js";
-import { createDetail, isMasked, counterHtml, wireCounter, gradeLabel, kindLabel, fmt, MASKED_NAME, MASKED_DESC } from "./guides.js";
-import { lightTheSign, revealOnScroll } from "./motion.js";
-import { readShotMode, applyShotMode } from "./shots.js";
+import { applyShotMode } from "./shots.js";
+import { armReveal } from "./motion.js";
 
-const els = {
-  sign: document.getElementById("sign"),
-  progressLabel: document.getElementById("progress-label"),
-  progressPct: document.getElementById("progress-pct"),
-  roadBar: document.getElementById("road-bar"),
-  roadFill: document.getElementById("road-fill"),
-  grid: document.getElementById("grid"),
-  resultCount: document.getElementById("result-count"),
-  emptyState: document.getElementById("empty-state"),
-  roadmap: document.getElementById("roadmap"),
-  missableList: document.getElementById("missable-list"),
-  missableCount: document.getElementById("missable-count"),
-  search: document.getElementById("search"),
-  kind: document.getElementById("filter-kind"),
-  grade: document.getElementById("filter-grade"),
-  state: document.getElementById("filter-state"),
-  missableOnly: document.getElementById("filter-missable"),
-  shield: document.getElementById("shield"),
-  exportBtn: document.getElementById("export-btn"),
-  importFile: document.getElementById("import-file"),
-  hint: document.querySelector(".dash-hint"),
-  overlay: document.getElementById("detail-overlay"),
-  detailContent: document.getElementById("detail-content"),
-  detailClose: document.getElementById("detail-close"),
-};
+const filters = { search: "", kind: "all", grade: "all", state: "all" };
+const $ = (id) => document.getElementById(id);
 
-const GRADE_TOTALS = { platinum: 1, gold: 2, silver: 6, bronze: 46 };
-const filters = { q: "", kind: "all", grade: "all", state: "all", missableOnly: false };
-let store = null;
-let detail = null;
-let firstRender = true;
-
-function esc(text) {
-  return String(text)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-function firstSentence(text) {
-  const cut = text.indexOf(". ");
-  return cut === -1 ? text : text.slice(0, cut + 1);
-}
-
-function visibleTrophies() {
-  const q = filters.q.trim().toLowerCase();
-  return store.trophies.filter((t) => {
-    if (filters.kind !== "all" && t.kind !== filters.kind) return false;
-    if (filters.grade !== "all" && t.grade !== filters.grade) return false;
-    if (filters.state === "earned" && !store.isEarned(t.id)) return false;
-    if (filters.state === "unearned" && store.isEarned(t.id)) return false;
-    if (filters.missableOnly && !t.missable) return false;
-    if (q) {
-      const haystack = `${t.name} ${t.description} ${t.guide}`.toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-    return true;
-  });
-}
-
-function cardHtml(t) {
-  const earned = store.isEarned(t.id);
-  const masked = isMasked(t, store);
-  const tags = [`<span class="tag">${esc(kindLabel(t.kind))}</span>`];
-  if (t.missable) tags.push(`<span class="tag tag-missable">Missable watch</span>`);
-  if (masked) tags.push(`<span class="tag tag-spoiler">Spoiler shielded</span>`);
-
-  return (
-    `<article class="card${earned ? " earned" : ""}" data-id="${t.id}" tabindex="0" role="button" aria-label="${esc(masked ? "Spoiler-shielded story trophy" : t.name)} — open guide">` +
-    `<div class="card-top">` +
-    `<button type="button" class="mile" data-mile="${t.id}" title="Stamp earned / undo">${earned ? "★ " : ""}MILE ${t.id}</button>` +
-    `<span class="grade-chip"><span class="grade-dot" style="background:var(--${t.grade});box-shadow:0 0 6px var(--${t.grade})"></span>${esc(gradeLabel(t.grade))}</span>` +
-    `</div>` +
-    `<span class="stamp" aria-hidden="true">EARNED</span>` +
-    `<h3 class="card-name${masked ? " spoiler-masked" : ""}">${masked ? MASKED_NAME : esc(t.name)}</h3>` +
-    `<p class="card-desc${masked ? " spoiler-masked" : ""}">${masked ? MASKED_DESC : esc(t.description)}</p>` +
-    (masked ? "" : `<p class="card-guide">${esc(firstSentence(t.guide))}</p>`) +
-    counterHtml(t, store) +
-    `<div class="card-tags">${tags.join("")}</div>` +
-    `</article>`
-  );
-}
-
-function renderProgress() {
-  const total = store.trophies.length;
-  const earned = store.earnedCount();
-  const pct = total ? Math.round((earned / total) * 100) : 0;
-  els.progressLabel.textContent = `${earned} of ${total} trophies earned`;
-  els.progressPct.textContent = `${pct}%`;
-  els.roadFill.style.width = `${pct}%`;
-  els.roadBar.setAttribute("aria-valuenow", String(earned));
-  for (const grade of Object.keys(GRADE_TOTALS)) {
-    const el = document.getElementById(`count-${grade}`);
-    if (!el) continue;
-    const ofGrade = store.trophies.filter((t) => t.grade === grade);
-    el.textContent = `${store.earnedOf(ofGrade)}/${GRADE_TOTALS[grade]}`;
+function matchesFilters(trophy) {
+  if (filters.kind !== "all" && trophy.kind !== filters.kind) return false;
+  if (filters.grade !== "all" && trophy.grade !== filters.grade) return false;
+  if (filters.state === "earned" && !isEarned(trophy.id)) return false;
+  if (filters.state === "unearned" && isEarned(trophy.id)) return false;
+  if (filters.search) {
+    const hay = `${trophy.name} ${trophy.description} ${trophy.guide}`.toLowerCase();
+    if (!hay.includes(filters.search)) return false;
   }
+  return true;
 }
 
-function renderGrid() {
-  const list = visibleTrophies();
-  els.grid.innerHTML = list.map(cardHtml).join("");
-  els.resultCount.textContent = `Showing ${list.length} of ${store.trophies.length} trophies`;
+function paintProgress() {
+  const p = progress();
+  $("progressText").textContent = `${p.earned} of ${p.total} trophies · ${p.pct}%`;
+  $("roadFill").style.width = `${p.pct}%`;
+  $("roadBar").setAttribute("aria-valuenow", String(p.earned));
+  $("countPlatinum").textContent = `${p.perGrade.platinum.earned}/${p.perGrade.platinum.total}`;
+  $("countGold").textContent = `${p.perGrade.gold.earned}/${p.perGrade.gold.total}`;
+  $("countSilver").textContent = `${p.perGrade.silver.earned}/${p.perGrade.silver.total}`;
+  $("countBronze").textContent = `${p.perGrade.bronze.earned}/${p.perGrade.bronze.total}`;
+}
 
-  if (list.length === 0) {
-    els.emptyState.hidden = false;
-    els.emptyState.textContent =
+function buildCard(trophy) {
+  const earned = isEarned(trophy.id);
+  const masked = isMasked(trophy);
+  const card = document.createElement("article");
+  card.className = "card" + (earned ? " is-earned" : "");
+  card.dataset.grade = trophy.grade;
+
+  const top = document.createElement("div");
+  top.className = "card-top";
+  const disc = document.createElement("button");
+  disc.type = "button";
+  disc.className = "marker-disc";
+  disc.textContent = "✓";
+  disc.title = earned ? "Mark as not earned" : "Mark as earned";
+  disc.setAttribute("aria-label", `${earned ? "Unmark" : "Mark"} ${trophy.name} as earned`);
+  disc.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleEarned(trophy.id);
+  });
+  const grade = document.createElement("span");
+  grade.className = `card-grade card-grade-${trophy.grade}`;
+  grade.textContent = GRADE_LABEL[trophy.grade];
+  const kind = document.createElement("span");
+  kind.className = "card-kind";
+  kind.textContent = KIND_LABEL[trophy.kind];
+  top.append(disc, grade, kind);
+
+  const name = document.createElement("h3");
+  name.className = "card-name" + (masked ? " masked" : "");
+  name.textContent = displayName(trophy);
+
+  const desc = document.createElement("p");
+  desc.className = "card-desc" + (masked ? " masked" : "");
+  desc.textContent = displayDesc(trophy);
+
+  const guide = document.createElement("p");
+  guide.className = "card-guide";
+  guide.textContent = masked
+    ? "Guide hidden by the spoiler shield."
+    : firstSentence(trophy.guide);
+
+  const foot = document.createElement("div");
+  foot.className = "card-foot";
+  if (trophy.missable) {
+    const badge = document.createElement("span");
+    badge.className = "badge-missable";
+    badge.textContent = "⚠ Missable watch";
+    foot.appendChild(badge);
+  }
+  if (trophy.target) {
+    const counter = document.createElement("span");
+    counter.className = "card-counter";
+    counter.textContent = `${getCount(trophy.id).toLocaleString("en-US")} / ${trophy.target.goal.toLocaleString("en-US")}`;
+    foot.appendChild(counter);
+  }
+
+  const stamp = document.createElement("span");
+  stamp.className = "stamp";
+  stamp.textContent = "EARNED";
+
+  card.append(top, name, desc, guide, foot, stamp);
+  card.addEventListener("click", () => openDetail(trophy.id));
+  return card;
+}
+
+function paintGrid() {
+  const grid = $("trophyGrid");
+  grid.innerHTML = "";
+  const visible = allTrophies().filter(matchesFilters);
+  for (const trophy of visible) grid.appendChild(buildCard(trophy));
+  $("listCount").textContent = `— showing ${visible.length} of ${allTrophies().length}`;
+  const empty = $("emptyState");
+  empty.hidden = visible.length > 0;
+  if (visible.length === 0) {
+    $("emptyBody").textContent =
       filters.kind === "online"
-        ? "No trophies in the official list are online-only — every one of the 55 can be earned in single player. The online shelf is honestly empty."
-        : "No trophies match that combination. Loosen a filter or clear the search and the road opens up again.";
-  } else {
-    els.emptyState.hidden = true;
+        ? "Honest answer: the official list has no online trophies — all 55 are earned in the single-player game, so this filter has nothing to show."
+        : "No trophies match the current dash settings. Loosen a filter and the road fills up again.";
   }
-
-  els.grid.querySelectorAll("[data-counter]").forEach((box) => {
-    const card = box.closest("[data-id]");
-    wireCounter(card ?? els.grid, store);
-  });
 }
 
-function missableWhy(t) {
-  if (t.description.includes("final mission for")) {
-    return "A character's final mission — finish the strand before the endgame.";
+function paintWatch() {
+  const list = $("watchList");
+  list.innerHTML = "";
+  for (const trophy of allTrophies().filter((t) => t.missable)) {
+    const li = document.createElement("li");
+    li.className = "watch-item" + (isEarned(trophy.id) ? " is-earned" : "");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const dot = document.createElement("span");
+    dot.className = "watch-dot";
+    btn.append(dot, document.createTextNode(displayName(trophy)));
+    btn.addEventListener("click", () => openDetail(trophy.id));
+    li.appendChild(btn);
+    list.appendChild(li);
   }
-  if (t.id === 7) return "The final mission — the point of no return. Save before you take it on.";
-  if (t.id === 48) return "Choices only exist inside their moments — some can never be revisited.";
-  if (t.kind === "story") return "A one-time story mission — it happens once, so keep a save before it.";
-  return "A one-off scene flagged from its description — do it the first time you can.";
 }
 
-function renderMissable() {
-  const flagged = store.trophies.filter((t) => t.missable);
-  const done = store.earnedOf(flagged);
-  els.missableCount.textContent = `${flagged.length} flagged · ${done} earned`;
-  els.missableList.innerHTML = flagged
-    .map((t) => {
-      const earned = store.isEarned(t.id);
-      const masked = isMasked(t, store);
-      return (
-        `<li class="missable-item${earned ? " done" : ""}" data-open="${t.id}">` +
-        `<span><span class="mi-name">${masked ? MASKED_NAME : esc(t.name)}</span>` +
-        `<span class="mi-why">${esc(missableWhy(t))}</span></span>` +
-        `<span class="mi-state">${earned ? "Earned ✓" : esc(gradeLabel(t.grade))}</span></li>`
-      );
-    })
-    .join("");
-  els.missableList.querySelectorAll("[data-open]").forEach((item) => {
-    item.addEventListener("click", () => detail.open(Number(item.dataset.open)));
-  });
+function paintAll() {
+  paintProgress();
+  paintWatch();
+  renderRoadmap($("roadmap"), openDetail);
+  paintGrid();
+  refreshDetail();
+  const toggle = $("spoilerToggle");
+  toggle.checked = spoilerOn();
+  $("spoilerState").textContent = spoilerOn() ? "ON" : "OFF";
 }
 
-function renderAll() {
-  els.shield.checked = store.shield;
-  renderProgress();
-  renderGrid();
-  renderRoadmap(els.roadmap, store, (id) => detail.open(id), firstRender);
-  renderMissable();
-  firstRender = false;
+let msgTimer = null;
+function dashMessage(text) {
+  const el = $("dashMsg");
+  el.textContent = text;
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => (el.textContent = ""), 4200);
 }
 
-function wireControls() {
-  els.search.addEventListener("input", () => {
-    filters.q = els.search.value;
-    renderGrid();
+function wireDash() {
+  $("searchInput").addEventListener("input", (e) => {
+    filters.search = e.target.value.trim().toLowerCase();
+    paintGrid();
   });
-  els.kind.addEventListener("change", () => {
-    filters.kind = els.kind.value;
-    renderGrid();
+  $("kindFilter").addEventListener("change", (e) => {
+    filters.kind = e.target.value;
+    paintGrid();
   });
-  els.grade.addEventListener("change", () => {
-    filters.grade = els.grade.value;
-    renderGrid();
+  $("gradeFilter").addEventListener("change", (e) => {
+    filters.grade = e.target.value;
+    paintGrid();
   });
-  els.state.addEventListener("change", () => {
-    filters.state = els.state.value;
-    renderGrid();
+  $("stateFilter").addEventListener("change", (e) => {
+    filters.state = e.target.value;
+    paintGrid();
   });
-  els.missableOnly.addEventListener("change", () => {
-    filters.missableOnly = els.missableOnly.checked;
-    renderGrid();
-  });
-  els.shield.addEventListener("change", () => {
-    store.setShield(els.shield.checked);
-  });
-
-  els.grid.addEventListener("click", (event) => {
-    const mile = event.target.closest("[data-mile]");
-    const card = event.target.closest("[data-id]");
-    if (mile) {
-      event.stopPropagation();
-      store.toggleEarned(Number(mile.dataset.mile));
-      return;
-    }
-    if (event.target.closest("[data-counter]")) return; // steppers wire themselves
-    if (card) detail.open(Number(card.dataset.id));
-  });
-  els.grid.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    const card = event.target.closest("[data-id]");
-    if (card && event.target === card) {
-      event.preventDefault();
-      detail.open(Number(card.dataset.id));
-    }
-  });
-
-  els.exportBtn.addEventListener("click", () => {
-    const blob = new Blob([store.exportJson()], { type: "application/json" });
+  $("spoilerToggle").addEventListener("change", (e) => setSpoiler(e.target.checked));
+  $("exportBtn").addEventListener("click", () => {
+    const blob = new Blob([exportSave()], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "platinum-road-progress.json";
     a.click();
     URL.revokeObjectURL(url);
-    els.hint.textContent = "Progress exported — keep the file somewhere safe.";
+    dashMessage("Progress exported — keep the file somewhere safe.");
   });
-
-  els.importFile.addEventListener("change", async () => {
-    const file = els.importFile.files?.[0];
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
     if (!file) return;
-    const text = await file.text();
-    const result = store.importJson(text);
-    els.hint.textContent = result.message;
-    els.importFile.value = "";
+    try {
+      importSave(await file.text());
+      dashMessage("Progress imported. Welcome back to the road.");
+    } catch (err) {
+      dashMessage(err.message);
+    }
   });
 }
 
-async function init() {
-  const trophies = await loadTrophies();
-  store = createStore(trophies);
-  detail = createDetail({
-    overlay: els.overlay,
-    content: els.detailContent,
-    closeBtn: els.detailClose,
-    store,
-  });
-  wireControls();
-  store.subscribe(renderAll);
-  renderAll();
-  lightTheSign(els.sign);
-  revealOnScroll(document.querySelectorAll(".stage, section, .dash, .progress-block"));
-
-  const mode = readShotMode();
-  if (mode) applyShotMode(mode, { store, openDetail: (id) => detail.open(id) });
+async function boot() {
+  await loadTrophies();
+  loadSave();
+  wireDash();
+  wireDetail();
+  paintAll();
+  subscribe(paintAll);
+  for (const panel of document.querySelectorAll("main .panel")) panel.classList.add("reveal");
+  armReveal(document);
+  applyShotMode();
 }
 
-init().catch((err) => {
-  els.grid.innerHTML = "";
-  els.emptyState.hidden = false;
-  els.emptyState.textContent = `The guide could not start: ${err.message} If you opened this file directly from disk, serve the folder instead (node serve.ts) — browsers will not load the trophy data from a file:// page.`;
+boot().catch((err) => {
+  document.body.insertAdjacentHTML(
+    "afterbegin",
+    `<p style="padding:16px;text-align:center">The tracker could not load its trophy data: ${err.message}</p>`,
+  );
 });

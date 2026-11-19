@@ -1,43 +1,38 @@
-// motion.js — the small moving parts: the sign's flicker-in when the page
-// lights up, and scroll-reveal for the sections. Everything here steps
-// aside when the visitor prefers reduced motion (the stylesheet also
-// hard-disables animation under that preference).
+// motion.js — the small hours of the neon: reveal-on-scroll for the
+// panels and a careful respect for players who prefer it calm.
+// The sign's flicker-in lives in CSS; this file only decides when
+// sections light up as the drive brings them into view.
+
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 export function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return REDUCED.matches;
 }
 
-// Add the class that plays the masthead's neon flicker exactly once.
-export function lightTheSign(signEl) {
-  if (!signEl) return;
-  if (prefersReducedMotion()) {
-    signEl.classList.add("lit");
+export function armReveal(scope = document) {
+  const targets = scope.querySelectorAll(".reveal");
+  if (REDUCED.matches || !("IntersectionObserver" in window)) {
+    for (const el of targets) el.classList.add("lit");
     return;
   }
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => signEl.classList.add("lit"));
-  });
-}
-
-// Fade-and-rise elements carrying .reveal as they enter the viewport.
-// Without IntersectionObserver (or with reduced motion) everything is
-// simply shown.
-export function revealOnScroll(elements) {
-  const els = [...elements];
-  if (!("IntersectionObserver" in window) || prefersReducedMotion()) {
-    els.forEach((el) => el.classList.add("in"));
-    return;
-  }
-  const observer = new IntersectionObserver(
+  const io = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
-          entry.target.classList.add("in");
-          observer.unobserve(entry.target);
+          entry.target.classList.add("lit");
+          io.unobserve(entry.target);
         }
       }
     },
     { threshold: 0.08 },
   );
-  els.forEach((el) => observer.observe(el));
+  for (const el of targets) io.observe(el);
+}
+
+export function scrollToId(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  requestAnimationFrame(() => {
+    setTimeout(() => el.scrollIntoView({ block: "start", behavior: "auto" }), 60);
+  });
 }
