@@ -1,0 +1,390 @@
+/* PLATINUM ROAD — "VICE NIGHT HIGHWAY": a neon roadside-Americana night
+   drive. Deep night-navy, a glowing roadside sign over a retro sunset
+   band with original palm silhouettes, a neon road for progress, heavy
+   mile-marker trophy cards with hard offset shadows, highway-sign
+   roadmap stages and a chunky dash-panel of controls. Motion is CSS
+   first (neon flicker-in, dash crawl, shine sweeps, stagger-ins) with
+   prefers-reduced-motion and the ?shot= freeze both killing the loops.
+   Fonts: Anton + Yellowtail, SIL OFL 1.1, vendored in app/fonts/. */
+
+@font-face {
+  font-family: "Anton";
+  src: url("fonts/anton.woff2") format("woff2");
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: "Yellowtail";
+  src: url("fonts/yellowtail.woff2") format("woff2");
+  font-weight: 400; font-display: swap;
+}
+
+:root {
+  --night: #0d1030;
+  --night-deep: #05061a;
+  --panel: #171b47;
+  --panel-2: #1d2260;
+  --line: #343b8f;
+  --paper-text: #f5f2ff;
+  --muted: #b9bde8;
+  --neon-orange: #ff7a18;
+  --neon-pink: #ff2e88;
+  --neon-purple: #8a3ffc;
+  --neon-ice: #7fe7ff;
+  --neon-green: #2eff8f;
+  --plat: #aee7ff; --plat-edge: #39b6f0;
+  --gold: #ffc93c; --gold-edge: #d9940d;
+  --silver: #e6ebf2; --silver-edge: #9aa7ba;
+  --bronze: #f0923c; --bronze-edge: #b35c14;
+  --missable: #ff3355;
+  --shadow: 7px 7px 0 var(--night-deep);
+  --radius: 14px;
+  --display: "Anton", "Arial Narrow", Impact, sans-serif;
+  --script: "Yellowtail", cursive;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(1100px 480px at 85% -80px, rgba(138, 63, 252, .28), transparent 60%),
+    radial-gradient(900px 420px at -120px 240px, rgba(255, 46, 136, .13), transparent 60%),
+    var(--night);
+  color: var(--paper-text);
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+/* ---------- Masthead: the roadside sign ---------- */
+.masthead { position: relative; overflow: hidden; padding: 30px 20px 26px; }
+.sunset-band {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 118px;
+  background: linear-gradient(180deg,
+    rgba(255, 122, 24, 0) 0%, #ff7a18 30%, #ff2e88 58%, #8a3ffc 84%, #3b1163 100%);
+  opacity: .92;
+}
+.sunset-band::before {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(180deg, transparent 0 13px, rgba(13, 16, 48, .55) 13px 16px);
+  animation: bandShimmer 7s ease-in-out infinite alternate;
+}
+.palms { position: absolute; left: 0; bottom: 0; width: 100%; height: 118px; }
+.palm-trunk, .palm-frond { fill: none; stroke: #0a0c26; stroke-linecap: round; }
+.palm-trunk { stroke-width: 7; }
+.palm-frond { stroke-width: 5; }
+
+.masthead-inner { position: relative; max-width: 1180px; margin: 0 auto; }
+.sign {
+  border: 3px solid var(--neon-pink);
+  border-radius: 18px;
+  background: rgba(9, 11, 36, .88);
+  box-shadow: 0 0 22px rgba(255, 46, 136, .55), 0 0 64px rgba(255, 46, 136, .28), var(--shadow);
+  padding: 20px 26px 18px;
+}
+.kicker { margin: 0 0 2px; font-size: 13px; font-weight: 800; letter-spacing: 3px; color: var(--neon-ice); }
+.sign h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 74px;
+  line-height: .98;
+  letter-spacing: 2.5px;
+  font-weight: 400;
+  color: #fff;
+  text-shadow:
+    0 0 6px rgba(127, 231, 255, .9), 0 0 22px rgba(127, 231, 255, .55),
+    0 0 46px rgba(56, 160, 255, .5), 5px 5px 0 var(--neon-pink);
+}
+.sign h1 .letter { display: inline-block; animation: letterGlow .7s both; }
+.sign-script {
+  margin: 2px 0 0; font-family: var(--script); font-size: 34px; line-height: 1;
+  color: var(--neon-orange);
+  text-shadow: 0 0 8px rgba(255, 122, 24, .85), 0 0 26px rgba(255, 122, 24, .5), 2px 2px 0 rgba(59, 17, 99, .8);
+  transform: rotate(-2deg); transform-origin: left center;
+}
+.tagline { margin: 10px 0 0; font-size: 18px; max-width: 780px; color: var(--paper-text); }
+
+/* The neon road: progress you drive along */
+.neon-road {
+  position: relative; height: 30px; margin: 22px 0 6px; max-width: 820px;
+  background: #080a24; border: 2px solid var(--line); border-radius: 999px; overflow: visible;
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, .8);
+}
+.road-dashes {
+  position: absolute; left: 10px; right: 10px; top: 50%; height: 5px; transform: translateY(-50%);
+  border-radius: 3px;
+  background: repeating-linear-gradient(90deg, var(--gold) 0 30px, transparent 30px 52px);
+  filter: drop-shadow(0 0 5px rgba(255, 201, 60, .8));
+  animation: dashCrawl 1.6s linear infinite;
+}
+.road-marker {
+  position: absolute; top: 50%; left: 0%; width: 22px; height: 22px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #ffffff, var(--neon-ice) 58%, #1d7fd6);
+  border: 3px solid #eafcff;
+  box-shadow: 0 0 12px var(--neon-ice), 0 0 30px rgba(127, 231, 255, .65), 10px 0 22px 4px rgba(255, 244, 190, .55);
+  transition: left .8s cubic-bezier(.22, .9, .3, 1.15);
+  z-index: 1;
+}
+.progress-wrap { max-width: 820px; }
+.progress-bar { height: 16px; background: #080a24; border: 2px solid var(--line); border-radius: 999px; overflow: hidden; }
+.progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink), var(--neon-orange), var(--gold));
+  box-shadow: 0 0 14px rgba(255, 46, 136, .7);
+  transition: width .8s cubic-bezier(.22, .9, .3, 1.1);
+}
+.progress-text { margin: 7px 0 0; font-weight: 800; font-size: 19px; letter-spacing: .4px; }
+.grade-counts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.grade-count {
+  background: var(--panel-2); border: 2px solid var(--line); border-radius: 999px;
+  padding: 3px 13px; font-size: 14px; font-weight: 800; box-shadow: 3px 3px 0 var(--night-deep);
+}
+
+/* ---------- Controls: the dash panel ---------- */
+.controls {
+  max-width: 1180px; margin: 20px auto 0; padding: 16px 18px;
+  background: var(--panel); border: 3px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: end;
+}
+.ctl { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--neon-ice); }
+.ctl select, .ctl input[type="search"] {
+  font-size: 16px; padding: 9px 11px; border: 2.5px solid var(--night-deep); border-radius: 9px;
+  background: #0a0d2e; color: var(--paper-text); box-shadow: 4px 4px 0 var(--night-deep);
+  text-transform: none; letter-spacing: 0; font-weight: 600;
+}
+.ctl-search { flex: 1 1 210px; }
+.ctl-toggle .toggle-row { display: flex; align-items: center; gap: 9px; font-size: 15px; padding: 8px 0; text-transform: none; letter-spacing: 0; color: var(--paper-text); }
+.ctl-toggle input { width: 24px; height: 24px; accent-color: var(--neon-pink); cursor: pointer; }
+.ctl-buttons { flex-direction: row; align-items: center; gap: 12px; }
+button, .import-label {
+  font-size: 15.5px; font-weight: 800; cursor: pointer;
+  background: var(--neon-orange); color: #fff; border: 2.5px solid var(--night-deep); border-radius: 10px;
+  padding: 10px 17px; box-shadow: 4px 4px 0 var(--night-deep);
+  transition: transform .08s ease, box-shadow .08s ease, background .15s ease;
+}
+button:hover, .import-label:hover { background: var(--neon-pink); }
+button:active, .import-label:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--night-deep); }
+.import-label input { display: none; }
+
+.method-note {
+  max-width: 1180px; margin: 16px auto 0; padding: 13px 17px;
+  background: rgba(255, 51, 85, .12); border: 2.5px solid var(--missable); border-left: 10px solid var(--missable);
+  border-radius: var(--radius); font-size: 15.5px; box-shadow: var(--shadow);
+}
+
+/* ---------- Layout ---------- */
+.layout {
+  max-width: 1180px; margin: 20px auto 0; padding: 0 4px;
+  display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 20px; align-items: start;
+}
+.pane-title { font-family: var(--display); font-weight: 400; font-size: 27px; letter-spacing: 1.2px; margin: 4px 0 13px; }
+.showing-count { font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+
+/* ---------- Trophy cards: mile markers ---------- */
+.trophy-list { display: flex; flex-direction: column; gap: 12px; }
+.trophy-card {
+  display: flex; gap: 14px; align-items: flex-start; text-align: left; width: 100%;
+  background: var(--panel); border: 3px solid var(--line); border-left: 12px solid var(--line);
+  border-radius: var(--radius); padding: 14px 16px; cursor: pointer; color: var(--paper-text);
+  box-shadow: var(--shadow);
+  animation: cardIn .45s both; animation-delay: calc(var(--i, 0) * 45ms);
+  transition: transform .12s ease, border-color .15s ease;
+}
+.trophy-card:hover { transform: translate(-2px, -2px); border-color: var(--neon-ice); }
+.trophy-card.selected { border-color: var(--neon-pink); box-shadow: 0 0 0 2px rgba(255, 46, 136, .45), var(--shadow); }
+.trophy-card.grade-platinum { border-left-color: var(--plat-edge); }
+.trophy-card.grade-gold { border-left-color: var(--gold-edge); }
+.trophy-card.grade-silver { border-left-color: var(--silver-edge); }
+.trophy-card.grade-bronze { border-left-color: var(--bronze-edge); }
+.trophy-card.is-earned {
+  background: linear-gradient(180deg, #1d2a24, #16281f);
+  border-color: var(--neon-green);
+  box-shadow: 0 0 16px rgba(46, 255, 143, .35), var(--shadow);
+  animation: cardIn .45s both, earnedPop .45s ease;
+}
+.trophy-check { width: 27px; height: 27px; flex: none; margin-top: 5px; accent-color: var(--neon-green); cursor: pointer; }
+.trophy-body { flex: 1; min-width: 0; }
+.trophy-name { font-size: 19.5px; font-weight: 800; margin: 0; }
+.trophy-desc { margin: 2px 0 0; font-size: 15.5px; color: var(--muted); }
+.trophy-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.medallion {
+  position: relative; overflow: hidden; flex: none;
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 900; color: rgba(10, 12, 38, .78);
+  border: 3.5px solid; margin-top: 2px;
+  box-shadow: 3px 3px 0 var(--night-deep), inset 0 -6px 10px rgba(10, 12, 38, .28);
+}
+.medallion::after {
+  content: ""; position: absolute; top: -30%; bottom: -30%; width: 42%; left: -70%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .85), transparent);
+  transform: rotate(8deg);
+}
+.trophy-card:hover .medallion::after, .is-earned .medallion::after, .detail-head .medallion::after {
+  animation: shineSweep .8s ease;
+}
+.medallion.platinum { background: radial-gradient(circle at 32% 30%, #ffffff, var(--plat) 62%, #6ec6ef); border-color: var(--plat-edge); }
+.medallion.gold { background: radial-gradient(circle at 32% 30%, #fff6cf, var(--gold) 62%, #d99a16); border-color: var(--gold-edge); }
+.medallion.silver { background: radial-gradient(circle at 32% 30%, #ffffff, var(--silver) 62%, #aeb9c6); border-color: var(--silver-edge); }
+.medallion.bronze { background: radial-gradient(circle at 32% 30%, #ffd9ae, var(--bronze) 62%, #b06f30); border-color: var(--bronze-edge); }
+.medallion.big { width: 66px; height: 66px; font-size: 30px; }
+
+.chip { font-size: 12.5px; font-weight: 800; letter-spacing: .4px; border-radius: 999px; padding: 2px 10px; border: 1.5px solid; text-transform: uppercase; background: #0a0d2e; color: var(--paper-text); }
+.chip.grade-platinum { border-color: var(--plat-edge); color: var(--plat); }
+.chip.grade-gold { border-color: var(--gold-edge); color: var(--gold); }
+.chip.grade-silver { border-color: var(--silver-edge); color: var(--silver); }
+.chip.grade-bronze { border-color: var(--bronze-edge); color: var(--bronze); }
+.chip.kind { border-color: var(--neon-purple); color: #cf9fff; }
+.chip.missable { background: var(--missable); border-color: var(--missable); color: #fff; box-shadow: 0 0 10px rgba(255, 51, 85, .55); }
+.chip.stage { border-color: #1f9d63; color: var(--neon-green); }
+.chip.target { border-color: #d88a2d; color: #ffb35c; }
+.chip.earned-chip { background: #12b76a; border-color: #12b76a; color: #fff; }
+.masked-note { font-style: italic; color: #8f94c4; }
+
+.empty-state {
+  background: var(--panel); border: 3px dashed var(--line); border-radius: var(--radius);
+  padding: 22px; font-size: 17px; text-align: center; box-shadow: var(--shadow);
+}
+
+/* ---------- Detail pane ---------- */
+.detail-pane {
+  background: var(--panel); border: 3px solid var(--neon-purple); border-radius: var(--radius);
+  padding: 19px; position: sticky; top: 14px;
+  box-shadow: 0 0 18px rgba(138, 63, 252, .35), var(--shadow);
+}
+.detail-pane > * { animation: detailIn .38s both; }
+.detail-pane > *:nth-child(2) { animation-delay: .04s; }
+.detail-pane > *:nth-child(3) { animation-delay: .08s; }
+.detail-pane > *:nth-child(4) { animation-delay: .12s; }
+.detail-pane > *:nth-child(5) { animation-delay: .16s; }
+.detail-pane > *:nth-child(6) { animation-delay: .2s; }
+.detail-pane .placeholder { color: var(--muted); font-size: 16px; }
+.detail-head { display: flex; gap: 14px; align-items: center; }
+.detail-head h3 { margin: 0; font-size: 25px; line-height: 1.15; }
+.detail-official { font-size: 16.5px; background: #0a0d2e; border-left: 7px solid var(--neon-orange); padding: 10px 13px; border-radius: 0 9px 9px 0; }
+.detail-pane h4 { margin: 16px 0 5px; font-size: 15px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--neon-orange); }
+.detail-guide { margin: 0; font-size: 16.5px; }
+.detail-sources { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); }
+.detail-earn { display: flex; align-items: center; gap: 9px; font-weight: 700; margin-top: 14px; font-size: 16px; }
+.detail-earn input { width: 24px; height: 24px; accent-color: var(--neon-green); }
+.counter-box { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.counter-box button { width: 42px; height: 42px; padding: 0; font-size: 22px; border-radius: 50%; }
+.counter-value { font-size: 22px; font-weight: 800; min-width: 130px; text-align: center; }
+.counter-input { width: 84px; font-size: 17px; padding: 6px; border: 2.5px solid var(--night-deep); border-radius: 8px; text-align: center; background: #0a0d2e; color: var(--paper-text); }
+
+/* ---------- Roadmap: highway signs on a winding neon road ---------- */
+.roadmap { max-width: 1180px; margin: 34px auto 0; padding: 0 4px 6px; }
+.roadmap h2 { font-family: var(--display); font-weight: 400; font-size: 34px; letter-spacing: 1.4px; margin: 0 0 4px; text-shadow: 3px 3px 0 rgba(255, 46, 136, .55); }
+.roadmap-intro { margin: 0 0 18px; font-size: 16.5px; max-width: 860px; color: var(--muted); }
+.roadmap-stages { display: flex; flex-direction: column; gap: 16px; position: relative; padding-left: 34px; }
+.roadmap-stages::before {
+  content: ""; position: absolute; left: 10px; top: 6px; bottom: 6px; width: 8px; border-radius: 99px;
+  background: repeating-linear-gradient(180deg, var(--gold) 0 26px, transparent 26px 44px);
+  filter: drop-shadow(0 0 6px rgba(255, 201, 60, .75));
+  animation: dashCrawlY 1.8s linear infinite;
+}
+.stage-card {
+  position: relative;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 3px solid var(--line); border-radius: var(--radius); padding: 16px 19px;
+  box-shadow: var(--shadow);
+  opacity: .35; transform: translateX(14px);
+  transition: opacity .5s ease, transform .5s ease, border-color .5s ease, box-shadow .5s ease;
+}
+.stage-card::before {
+  content: ""; position: absolute; left: -31px; top: 24px; width: 24px; height: 6px;
+  background: var(--gold); border-radius: 3px; box-shadow: 0 0 8px rgba(255, 201, 60, .8);
+}
+.stage-card.lit { opacity: 1; transform: none; border-color: var(--neon-orange); box-shadow: 0 0 16px rgba(255, 122, 24, .3), var(--shadow); }
+.stage-card h3 { margin: 0 0 4px; font-size: 21.5px; display: flex; align-items: center; gap: 11px; }
+.stage-no {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 44px;
+  font-family: var(--display); font-size: 20px; color: #08130c;
+  background: linear-gradient(180deg, #4be38a, #12b76a);
+  border: 3px solid #eafff3; border-radius: 9px 9px 14px 14px;
+  clip-path: polygon(0 0, 100% 0, 100% 68%, 50% 100%, 0 68%);
+  box-shadow: 0 0 12px rgba(46, 255, 143, .5);
+  padding-bottom: 6px;
+}
+.stage-desc { margin: 0 0 11px; font-size: 15.5px; color: var(--muted); }
+.stage-trophies { display: flex; flex-wrap: wrap; gap: 7px; }
+.stage-trophy {
+  font-size: 14px; font-weight: 700; background: #0a0d2e; border: 2px solid #5760c9;
+  border-radius: 999px; padding: 4px 12px; cursor: pointer; color: var(--paper-text);
+  box-shadow: 3px 3px 0 var(--night-deep);
+}
+.stage-trophy:hover { border-color: var(--neon-ice); background: #131a52; }
+.stage-trophy:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--night-deep); }
+.stage-trophy.done { background: #123324; border-color: var(--neon-green); text-decoration: line-through; }
+.stage-trophy .flag { color: #ff8296; font-weight: 900; }
+
+/* ---------- Sources ---------- */
+.sources { max-width: 1180px; margin: 32px auto 36px; padding: 19px; background: var(--panel); border: 3px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.sources h2 { font-family: var(--display); font-weight: 400; letter-spacing: 1.2px; margin: 0 0 6px; font-size: 26px; }
+.sources a { color: var(--neon-ice); font-weight: 700; }
+.fineprint { font-size: 13.5px; color: var(--muted); }
+
+/* ---------- Focus ---------- */
+:focus-visible { outline: 3px solid var(--neon-ice); outline-offset: 2px; }
+
+/* ---------- Motion keyframes ---------- */
+@keyframes letterGlow {
+  0% { opacity: .15; text-shadow: none; }
+  55% { opacity: 1; text-shadow: 0 0 4px rgba(127,231,255,.4), 2px 2px 0 var(--neon-pink); }
+  72% { opacity: .35; }
+  100% { opacity: 1; }
+}
+@keyframes bandShimmer { from { opacity: .55; } to { opacity: 1; } }
+@keyframes dashCrawl { from { background-position-x: 0; } to { background-position-x: 52px; } }
+@keyframes dashCrawlY { from { background-position-y: 0; } to { background-position-y: 44px; } }
+@keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes earnedPop { 0% { transform: scale(.985); } 55% { transform: scale(1.018); } 100% { transform: scale(1); } }
+@keyframes shineSweep { from { left: -70%; } to { left: 130%; } }
+@keyframes detailIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .stage-card { opacity: 1; transform: none; }
+}
+
+/* ---------- Shot modes: frozen end state + compact top framing ----------
+   body.shot-mode is set by shots.js for every ?shot= capture: all
+   animation and transition is killed and every animated element is
+   left in its final state, so screenshots are sharp and repeatable.
+   body.shot-compact (cover + spoiler) also tightens spacing so the
+   sign, road, progress, controls and first rows fit one frame. */
+body.shot-mode *, body.shot-mode *::before, body.shot-mode *::after {
+  animation: none !important; transition: none !important;
+}
+body.shot-mode .stage-card { opacity: 1; transform: none; }
+body.shot-compact .masthead { padding: 11px 20px 9px; }
+body.shot-compact .sign { padding: 10px 20px 8px; }
+body.shot-compact .sign h1 { font-size: 43px; }
+body.shot-compact .sign-script { font-size: 21px; margin-top: 0; }
+body.shot-compact .tagline { margin-top: 4px; font-size: 14.5px; max-width: 1060px; }
+body.shot-compact .sunset-band, body.shot-compact .palms { height: 56px; }
+body.shot-compact .neon-road { margin: 8px 0 3px; height: 21px; }
+body.shot-compact .progress-text { margin-top: 3px; font-size: 16px; }
+body.shot-compact .grade-counts { margin-top: 5px; }
+body.shot-compact .controls { margin-top: 8px; padding: 8px 13px; gap: 7px 15px; }
+body.shot-compact .controls select, body.shot-compact .controls input[type="search"] { padding: 6px 9px; }
+body.shot-compact .method-note { margin-top: 7px; padding: 6px 13px; font-size: 13.5px; }
+body.shot-compact .layout { margin-top: 8px; }
+body.shot-compact .pane-title { margin: 1px 0 6px; font-size: 22px; }
+body.shot-compact .trophy-list { gap: 7px; }
+body.shot-compact .trophy-card { padding: 8px 12px; }
+body.shot-compact .medallion { width: 42px; height: 42px; font-size: 19px; }
+body.shot-compact .detail-pane { padding: 13px 15px; }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .detail-pane { position: static; }
+  .sign h1 { font-size: 44px; }
+  .sign-script { font-size: 26px; }
+}

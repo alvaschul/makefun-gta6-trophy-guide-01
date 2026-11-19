@@ -1,0 +1,38 @@
+[
+ {
+  "description": "Cover shot from the top of the page: the glowing VICE NIGHT HIGHWAY roadside sign, neon-road progress with grade counts, the full dash-panel control row (search, kind / grade / state filters, spoiler shield, Export / Import), several trophies earned, and the Cunning Stunts guide open in the detail panel.",
+  "file": "1-checklist.jpg",
+  "path": "/?shot=checklist",
+  "viewport": {
+   "height": 720,
+   "width": 1280
+  }
+ },
+ {
+  "description": "Roadmap to the Platinum: the first stages with their trophies and MISSABLE WATCH flags.",
+  "file": "2-roadmap.jpg",
+  "path": "/?shot=roadmap",
+  "viewport": {
+   "height": 720,
+   "width": 1280
+  }
+ },
+ {
+  "description": "Guide detail for The Shootist (silver): official description, target counter at 30 of 42 range challenges, the guide in our own words and its sources line.",
+  "file": "3-guide.jpg",
+  "path": "/?shot=guide",
+  "viewport": {
+   "height": 720,
+   "width": 1280
+  }
+ },
+ {
+  "description": "Spoiler shield ON (toggle visible in the control row) with the Collectibles filter applied: story trophy names and descriptions are masked in the detail panel until earned.",
+  "file": "4-spoiler.jpg",
+  "path": "/?shot=spoiler",
+  "viewport": {
+   "height": 800,
+   "width": 1280
+  }
+ }
+]
