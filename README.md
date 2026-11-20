@@ -4,58 +4,55 @@
 
 # PLATINUM ROAD · Vice Night Highway
 
-A neon roadside-sign trophy guide and tracker for the official
-**Grand Theft Auto VI** PlayStation 5 trophy list — all **55 trophies**
-(1 platinum, 2 gold, 6 silver, 46 bronze), styled as a night drive down
-a Leonida highway: a glowing motel masthead, mile-marker trophy cards,
-highway exit signs for the roadmap, and a car dash panel for controls.
-
-It is a fully offline static web app. No build step, no network calls,
-no accounts — your progress lives in your browser's localStorage.
+A GTA 6 trophy guide and progress tracker styled as a neon-lit night
+drive down a Leonida highway. It covers all 55 official PlayStation 5
+trophies — 1 platinum, 2 gold, 6 silver, 46 bronze — and runs entirely
+offline: open the app and everything (data, fonts, logic) is already
+on board. No build step, no network calls, no accounts.
 
 ## What it does
 
-- **Checklist for all 55 trophies** with the exact official names,
-  descriptions and grades. Click a mile marker to stamp it EARNED;
-  progress shows overall and per grade on a neon-road progress bar.
-- **A guide for every trophy**, written for this app, plus a sources
-  line crediting the official PS5 list.
-- **Target counters** for the grind trophies (250 stunts, 42 range
-  golds, $250,000 laundered and more) with steppers that persist.
-- **Search and filters** by kind (story / collectibles / activities /
-  online), by grade, and by earned state.
-- **Spoiler Shield** — when on, unearned story trophies are masked so
-  you can track without being spoiled.
-- **Roadmap to Platinum** — six highway-sign stages that order the
-  whole list from the opening mission to the final mile.
-- **Missable Watch** — a precautionary flagged subset (about 15
-  trophies) derived only from the wording of the official descriptions:
-  one-time story missions, characters' final missions, one-off scenes.
-  When in doubt, keep a save before story missions.
-- **Export / Import** your progress as JSON, with validation on import.
+- **Checklist** — every trophy as a mile-marker sign; click to stamp
+  it EARNED. Progress persists in localStorage, shown as a neon road
+  with mile markers plus per-grade counts.
+- **Guides** — click any card for a detail view with the official
+  description and an original, practical guide for that trophy.
+- **Target counters** — grind trophies (250 stunts, 42 shooting-range
+  golds, $250,000 of laundered bills…) carry steppers that persist
+  alongside the checklist.
+- **Search & filters** — by text, by kind (story / collectibles /
+  activities / online), by grade, and by earned state.
+- **Spoiler shield** — when on, unearned story trophies are masked so
+  you can plan the route without reading the plot.
+- **Roadmap to Platinum** — the 55 trophies grouped into six ordered
+  stages, rendered as highway exit signs with per-stage progress.
+- **Missable Watch** — a precautionary list flagged from the wording
+  of the official descriptions (one-time missions, final missions for
+  individual characters, one-off scenes), with the method stated in
+  the app: when in doubt, keep a save before story missions.
+- **Export / Import** — download your progress as JSON and restore it
+  on another browser or device.
 
 ## Run it locally
 
-```sh
+```
 node serve.ts
 ```
 
-Then open <http://localhost:8080>. The server is a small static file
-server; the app itself is the plain files under `app/`.
+then open http://localhost:8080. Any static file server pointed at
+`app/` works just as well.
 
 ## Hand it in
 
-```sh
+```
 MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-This copies `app/` and `screenshots/` into `out/` and writes
-`out/dossier.json` describing the bundle under the competition caps.
+copies `app/` and `screenshots/` into `out/` and writes the make.fun
+dossier to `out/dossier.json`.
 
 ## Data sources
 
-Trophy names, descriptions and grades are the official PS5 trophy list
-for Grand Theft Auto VI, as published by **Exophase** and
-**PSNProfiles**. Guides, kinds, counters, roadmap stages and the
-missable flags are this project's own work, derived from the official
-descriptions.
+Trophy names, descriptions and grades are the official PS5 list for
+Grand Theft Auto VI as published by Exophase and PSNProfiles. All
+guide text in the app is original to this project.

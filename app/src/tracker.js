@@ -1,112 +1,134 @@
-// tracker.js — the save-game store for PLATINUM ROAD.
+// tracker.js — trophy data loading and the localStorage progress store.
 //
-// Progress lives in localStorage under one key as plain JSON:
-//   { earned: { "17": true, ... }, counts: { "17": 27, ... }, spoiler: false }
-// Everything read back from storage (or from an imported file) goes
-// through validateSave, so a corrupted or hand-edited save can never
-// smuggle in unknown trophy ids or nonsense counter values.
+// Progress lives under one versioned key and holds three things: the
+// set of earned trophy ids, the per-trophy counter values, and whether
+// the spoiler shield is on. Everything the UI shows derives from this
+// store plus the static trophy data; nothing ever leaves the browser
+// except through the explicit Export button.
 
-const STORAGE_KEY = 'platinum-road-save-v1';
+export const STORE_KEY = "platinum-road-progress-v1";
 
-export function blankState() {
-  return { earned: {}, counts: {}, spoiler: false };
+export async function loadTrophies(url = "data/trophies.json") {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`trophy data failed to load (${response.status})`);
+  const data = await response.json();
+  if (!data || !Array.isArray(data.trophies)) throw new Error("trophy data is malformed");
+  return data.trophies;
 }
 
-function isPlainObject(value) {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+function blankProgress() {
+  return { earned: [], counters: {}, shield: false };
 }
 
-export function validateSave(raw, validIds) {
-  if (!isPlainObject(raw)) return null;
-  const state = blankState();
-  if (isPlainObject(raw.earned)) {
-    for (const [key, value] of Object.entries(raw.earned)) {
-      const id = Number(key);
-      if (validIds.has(id) && value === true) state.earned[id] = true;
-    }
+function sanitise(raw, trophies) {
+  const known = new Set(trophies.map((t) => t.id));
+  const clean = blankProgress();
+  if (!raw || typeof raw !== "object") return clean;
+  if (Array.isArray(raw.earned)) {
+    clean.earned = [...new Set(raw.earned.filter((id) => known.has(id)))];
   }
-  if (isPlainObject(raw.counts)) {
-    for (const [key, value] of Object.entries(raw.counts)) {
-      const id = Number(key);
-      if (validIds.has(id) && Number.isFinite(value) && value >= 0) {
-        state.counts[id] = Math.floor(value);
+  if (raw.counters && typeof raw.counters === "object") {
+    for (const trophy of trophies) {
+      if (!trophy.target) continue;
+      const value = Number(raw.counters[trophy.id]);
+      if (Number.isFinite(value) && value > 0) {
+        clean.counters[trophy.id] = Math.min(Math.floor(value), trophy.target.total);
       }
     }
   }
-  state.spoiler = raw.spoiler === true;
-  return state;
+  clean.shield = raw.shield === true;
+  return clean;
 }
 
-export function formatCount(trophy, value) {
-  if (trophy.target && trophy.target.unit.startsWith('dollars')) {
-    return '$' + value.toLocaleString('en-US');
-  }
-  return String(value);
-}
-
-export function createStore(validIds) {
-  let state = blankState();
-  let locked = false;
-
+export function createStore(trophies, storage = window.localStorage) {
+  let progress = blankProgress();
   try {
-    const text = localStorage.getItem(STORAGE_KEY);
-    if (text) {
-      const parsed = validateSave(JSON.parse(text), validIds);
-      if (parsed) state = parsed;
-    }
+    const saved = storage.getItem(STORE_KEY);
+    if (saved) progress = sanitise(JSON.parse(saved), trophies);
   } catch {
-    // Corrupted storage is not worth crashing the guide over.
-    state = blankState();
+    progress = blankProgress();
   }
+
+  const earnedSet = new Set(progress.earned);
+  const listeners = new Set();
 
   function persist() {
-    if (locked) return;
+    progress.earned = [...earnedSet];
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      storage.setItem(STORE_KEY, JSON.stringify(progress));
     } catch {
-      // Private browsing and friends: the guide still works in memory.
+      // Private-mode storage can refuse writes; the in-memory state
+      // still drives the page for this session.
     }
+    for (const listener of listeners) listener();
   }
 
   return {
-    get state() {
-      return state;
-    },
-    // Shot modes flip the lock so staged progress never overwrites
-    // the visitor's real save.
-    lock() {
-      locked = true;
-    },
-    replace(next) {
-      state = next;
-      persist();
-    },
-    isEarned(id) {
-      return state.earned[id] === true;
-    },
+    isEarned: (id) => earnedSet.has(id),
     toggleEarned(id) {
-      if (state.earned[id]) delete state.earned[id];
-      else state.earned[id] = true;
-      persist();
-      return state.earned[id] === true;
-    },
-    getCount(id) {
-      return state.counts[id] ?? 0;
-    },
-    setCount(id, value, trophy) {
-      const goal = trophy && trophy.target ? trophy.target.goal : Infinity;
-      const next = Math.max(0, Math.min(goal, Math.floor(value) || 0));
-      if (next === 0) delete state.counts[id];
-      else state.counts[id] = next;
-      persist();
-      return next;
-    },
-    setSpoiler(on) {
-      state.spoiler = on === true;
+      if (earnedSet.has(id)) earnedSet.delete(id);
+      else earnedSet.add(id);
       persist();
     },
-    exportText() {
-      return JSON.stringify({ app: 'platinum-road', version: 1, ...state }, null, 2);
+    setEarned(id, on) {
+      if (on) earnedSet.add(id);
+      else earnedSet.delete(id);
+      persist();
+    },
+    earnedCount: () => earnedSet.size,
+    earnedIds: () => [...earnedSet],
+    counter(id) {
+      return progress.counters[id] ?? 0;
+    },
+    bumpCounter(trophy, delta) {
+      if (!trophy.target) return;
+      const step = trophy.target.step || 1;
+      const next = Math.max(0, Math.min(trophy.target.total, (progress.counters[trophy.id] ?? 0) + delta * step));
+      if (next > 0) progress.counters[trophy.id] = next;
+      else delete progress.counters[trophy.id];
+      if (next >= trophy.target.total) earnedSet.add(trophy.id);
+      persist();
+    },
+    shield: () => progress.shield,
+    setShield(on) {
+      progress.shield = on === true;
+      persist();
+    },
+    snapshot() {
+      return JSON.stringify(
+        { app: "platinum-road", version: 1, earned: [...earnedSet], counters: progress.counters, shield: progress.shield },
+        null,
+        2
+      );
+    },
+    restore(text) {
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return { ok: false, message: "That file is not valid JSON." };
+      }
+      if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.earned)) {
+        return { ok: false, message: "That file does not look like PLATINUM ROAD progress." };
+      }
+      progress = sanitise(parsed, trophies);
+      earnedSet.clear();
+      for (const id of progress.earned) earnedSet.add(id);
+      persist();
+      return { ok: true, message: `Imported ${earnedSet.size} earned trophies.` };
+    },
+    // Shot modes seed a fixed scene without touching saved progress:
+    // they replace the in-memory state and mute persistence.
+    seedForShot({ earned = [], counters = {}, shield = false }) {
+      earnedSet.clear();
+      for (const id of earned) earnedSet.add(id);
+      progress.counters = { ...counters };
+      progress.shield = shield;
+      for (const listener of listeners) listener();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
   };
 }

@@ -1,44 +1,40 @@
-// shots.js — the ?shot= scenarios used for the screenshots.
+// shots.js — the ?shot= scenes used for the entry's screenshots.
 //
-// Each mode stages a believable mid-journey save directly in the
-// store's memory: the store is locked first, so staged progress is
-// never written over the visitor's real localStorage save. Real
-// visitors without a ?shot= parameter never see any of this.
+// Each scene seeds a fixed, honest slice of state (a handful of earned
+// trophies, a part-filled counter, the shield on) through the store's
+// shot seeding, which never writes to the visitor's real saved
+// progress. Scenes only arrange state and framing; the page itself is
+// the same app a visitor gets.
 
-const CHECKLIST_EARNED = [2, 3, 8, 16, 21, 29, 44, 46]; // 8 of 55 ≈ 15%
-const SPOILER_EARNED = [2, 16, 21];
-const GUIDE_TROPHY_ID = 17; // The Shootist, silver, counter 27 / 42
-const GUIDE_COUNT = 27;
+const SCENES = {
+  checklist: {
+    bodyClass: "shot shot-checklist",
+    seed: { earned: [2, 3, 8, 15, 16, 21, 33, 44], counters: { 15: 132, 17: 27 }, shield: false },
+    scrollTo: null,
+    openDetailId: null,
+  },
+  roadmap: {
+    bodyClass: "shot shot-roadmap",
+    seed: { earned: [2, 3, 4, 8, 9, 22, 15, 16], counters: {}, shield: false },
+    scrollTo: "roadmapPanel",
+    openDetailId: null,
+  },
+  guide: {
+    bodyClass: "shot shot-guide",
+    seed: { earned: [2, 16], counters: { 17: 27 }, shield: false },
+    scrollTo: null,
+    openDetailId: 17, // The Shootist — silver, counter at 27 of 42
+  },
+  spoiler: {
+    bodyClass: "shot shot-spoiler",
+    seed: { earned: [2], counters: {}, shield: true },
+    scrollTo: null,
+    openDetailId: null,
+  },
+};
 
-export function applyShotMode(store) {
-  const params = new URLSearchParams(window.location.search);
-  const shot = params.get('shot');
-  if (!shot) return null;
-
-  document.body.classList.add('in-shot', `shot-${shot}`);
-  store.lock();
-  const state = store.state;
-
-  if (shot === 'checklist' || shot === 'roadmap' || shot === 'guide') {
-    for (const id of CHECKLIST_EARNED) state.earned[id] = true;
-  }
-  if (shot === 'guide') {
-    state.counts[GUIDE_TROPHY_ID] = GUIDE_COUNT;
-  }
-  if (shot === 'spoiler') {
-    state.spoiler = true;
-    for (const id of SPOILER_EARNED) state.earned[id] = true;
-  }
-  return shot;
-}
-
-export function finishShotMode(shot, openDetail) {
-  if (!shot) return;
-  if (shot === 'roadmap') {
-    const section = document.getElementById('roadmapSection');
-    if (section) section.scrollIntoView();
-  }
-  if (shot === 'guide') {
-    openDetail(GUIDE_TROPHY_ID);
-  }
+export function shotPlan() {
+  const mode = new URLSearchParams(window.location.search).get("shot");
+  if (!mode || !SCENES[mode]) return null;
+  return SCENES[mode];
 }

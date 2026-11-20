@@ -1,41 +1,45 @@
-// PLATINUM ROAD — hand-in program.
+// PLATINUM ROAD — hand-in entrypoint.
 //
-// Running this file produces the competition dossier: it copies the
-// finished web app (app/) and its four screenshots (screenshots/) into
-// the output folder, then asks the vendored make.fun frontend library
-// to describe that bundle as dossier.json under the competition caps.
-// The app itself is plain static files — this program is the only
-// build step, and it uses nothing beyond the Node 22 standard library
-// plus the vendored buildDossier helper.
+// Running this file assembles the competition dossier: it copies the
+// offline web app (app/) and its four screenshots (screenshots/) into
+// the output directory and asks the vendored make.fun frontend module
+// to describe that bundle in a dossier.json written beside the copies.
+// Only Node's standard library is used here; the dossier format itself
+// belongs to the vendored module.
+//
+// The output directory comes from MAKEFUN_OUTPUT_DIR when set and
+// falls back to /output, matching how the grader invokes this file.
+// Writing into the repository folder itself is refused outright: the
+// dossier must land somewhere separate from the source it describes.
 
-import { cpSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { buildDossier } from './vendor/makefun-frontend.ts';
+import { cpSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { buildDossier } from "./vendor/makefun-frontend.ts";
 
 const repoDir = dirname(fileURLToPath(import.meta.url));
-const outDir = resolve(process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
+const outputDir = resolve(process.env.MAKEFUN_OUTPUT_DIR ?? "/output");
 
-// Copying the app into itself would recurse forever and prove nothing,
-// so refuse that one output location outright.
-if (outDir === repoDir) {
-  console.error('MAKEFUN_OUTPUT_DIR must not be the repository folder itself.');
+if (outputDir === repoDir) {
+  console.error("refusing to write the dossier into the repository itself");
   process.exit(1);
 }
 
-mkdirSync(outDir, { recursive: true });
-cpSync(resolve(repoDir, 'app'), resolve(outDir, 'app'), { recursive: true });
-cpSync(resolve(repoDir, 'screenshots'), resolve(outDir, 'screenshots'), { recursive: true });
+mkdirSync(outputDir, { recursive: true });
 
-const caps = {
+for (const part of ["app", "screenshots"]) {
+  cpSync(resolve(repoDir, part), resolve(outputDir, part), { recursive: true });
+}
+
+const dossierBytes = buildDossier(outputDir, {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 262144 },
   app_max_files: 993,
   app_max_bytes: 50331648,
   app_path_max_bytes: 1000,
-};
+});
 
-const dossier = buildDossier(outDir, caps);
-writeFileSync(resolve(outDir, 'dossier.json'), dossier);
-const kib = ((typeof dossier === 'string' ? Buffer.byteLength(dossier) : dossier.byteLength) / 1024).toFixed(1);
-console.log(`PLATINUM ROAD: dossier written to ${resolve(outDir, 'dossier.json')} (${kib} KiB)`);
+const dossierPath = resolve(outputDir, "dossier.json");
+writeFileSync(dossierPath, dossierBytes);
+const dossierKib = (statSync(dossierPath).size / 1024).toFixed(1);
+console.log(`PLATINUM ROAD: dossier written to ${dossierPath} (${dossierKib} KiB)`);

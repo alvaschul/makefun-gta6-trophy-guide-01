@@ -1,81 +1,80 @@
-// roadmap.js — the six-stage route to the platinum, drawn as
-// highway exit signs. The stages order the whole list the way a
-// first playthrough actually unfolds: story first, then the
-// character strands, the collectors' loop, the activity grind,
-// and the final mile where the golds and the platinum wait.
+// roadmap.js — the six-stage route to the platinum.
+//
+// The stages run the way a sensible playthrough does: the story first
+// while it is unmissable-by-design, then the character strands, the
+// completion backbone, the skill activities, the long grinds, and a
+// final mile of one-off moments plus the platinum itself. Every one of
+// the 55 trophies sits in exactly one stage; each stage renders as a
+// highway exit sign with its trophies as chips and an earned meter.
 
 export const STAGES = [
   {
-    exit: 'EXIT 1',
-    name: 'First Nights in Vice City',
-    blurb: 'The opening hours: Gone Fishing, Chapter 1, and a cocktail with a view before the city swallows you whole.',
-    trophyIds: [2, 3, 8, 44],
+    exit: "EXIT 1",
+    name: "Story First — The Main Drag",
+    blurb: "Play the main storyline end to end before anything else. These are the chapter gates and the named one-time missions, in the order the game deals them.",
+    trophyIds: [2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 7],
   },
   {
-    exit: 'EXIT 2',
-    name: 'The Story Freeway',
-    blurb: 'Chapters 2–4 and the big named missions — heists, takedowns and operations. Bank a save before each one.',
-    trophyIds: [4, 5, 6, 9, 10, 11, 12, 13, 37, 48],
+    exit: "EXIT 2",
+    name: "The Inner Circle",
+    blurb: "Finish every character strand: the final missions for Andy, Kenton, Billy, Randy and Tyrone, plus eight full stranger strands across Leonida.",
+    trophyIds: [22, 23, 24, 26, 27, 25],
   },
   {
-    exit: 'EXIT 3',
-    name: 'Friends & Final Favors',
-    blurb: 'Character strands and their final missions. Clear these as they appear — strand finals are the heart of the missable watch.',
-    trophyIds: [22, 23, 24, 25, 26, 27, 29],
+    exit: "EXIT 3",
+    name: "Leonida Completionist",
+    blurb: "The backbone of the 100% gold: sample every activity type, explore all 52 areas, discover 100 vehicles and meditate at every quiet spot on the map.",
+    trophyIds: [14, 16, 42, 35, 28],
   },
   {
-    exit: 'EXIT 4',
-    name: "Collectors' Causeway",
-    blurb: 'Cards, quiet spots, new vehicles and new views: the gatherer’s loop across all 52 areas of Leonida.',
-    trophyIds: [28, 30, 31, 35, 42, 54, 55],
+    exit: "EXIT 4",
+    name: "Thrill Seeker",
+    blurb: "Skill and sport: 250 stunts, all 42 shooting-range golds, drone races, 20 race wins, Cal's fishing challenge, an arcade clear, Bret's unique hunt, 50 challenges and a five-man Combat Focus.",
+    trophyIds: [15, 17, 18, 19, 20, 21, 29, 32, 36],
   },
   {
-    exit: 'EXIT 5',
-    name: 'Leonida Playground',
-    blurb: 'Ranges, races, robberies and ridiculous feats — the activity grind, best driven with the counters running.',
-    trophyIds: [15, 16, 17, 18, 19, 20, 21, 32, 33, 34, 36, 38, 39, 40, 41, 43, 45, 46, 47, 49, 50, 51, 52, 53],
+    exit: "EXIT 5",
+    name: "Vice Grinder",
+    blurb: "The long economy of the platinum: card sets, 100 WAiNK spots, every gang robbed, 500 choices, the laundering and shopping totals, all garages and the Scooter Bros registry.",
+    trophyIds: [30, 31, 43, 48, 52, 53, 54, 55],
   },
   {
-    exit: 'EXIT 6',
-    name: 'The Final Mile',
-    blurb: 'The final mission, the 100% counter, and the legend stamp waiting at the end of the road.',
-    trophyIds: [7, 14, 1],
+    exit: "EXIT 6",
+    name: "The Final Mile",
+    blurb: "Partner chaos, heists and one-off scenes — the jewelry sneak, the vault run, the showroom exit — and at the very end of the road, the platinum itself.",
+    trophyIds: [33, 34, 37, 38, 39, 40, 41, 44, 45, 46, 47, 49, 50, 51, 1],
   },
 ];
 
-function esc(text) {
-  return String(text)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
-export function renderRoadmap(container, byId, store, onOpen) {
-  container.innerHTML = '';
+export function renderRoadmap(container, trophies, store, { onOpen }) {
+  const byId = new Map(trophies.map((t) => [t.id, t]));
+  container.innerHTML = "";
   for (const stage of STAGES) {
-    const earnedHere = stage.trophyIds.filter((id) => store.isEarned(id)).length;
-    const pct = Math.round((earnedHere / stage.trophyIds.length) * 100);
-    const sign = document.createElement('article');
-    sign.className = 'exit-sign reveal';
-    const chips = stage.trophyIds
-      .map((id) => {
-        const trophy = byId.get(id);
-        if (!trophy) return '';
-        const cls = store.isEarned(id) ? 'exit-chip is-earned' : 'exit-chip';
-        return `<button type="button" class="${cls}" data-open="${id}">${esc(trophy.name)}</button>`;
-      })
-      .join('');
+    const members = stage.trophyIds.map((id) => byId.get(id)).filter(Boolean);
+    const earned = members.filter((t) => store.isEarned(t.id)).length;
+    const pct = members.length ? Math.round((earned / members.length) * 100) : 0;
+
+    const sign = document.createElement("article");
+    sign.className = "stage-sign";
+    const chips = members
+      .map(
+        (t) =>
+          `<button type="button" class="stage-chip ${store.isEarned(t.id) ? "chip-earned" : ""}" data-open="${t.id}">${t.name}</button>`
+      )
+      .join("");
     sign.innerHTML = `
-      <p class="exit-kicker">${esc(stage.exit)} · ${stage.trophyIds.length} trophies</p>
-      <h3 class="exit-name">${esc(stage.name)}</h3>
-      <p class="exit-blurb">${esc(stage.blurb)}</p>
-      <div class="exit-meter"><div class="exit-meter-fill" style="width:${pct}%"></div></div>
-      <p class="exit-count">${earnedHere} of ${stage.trophyIds.length} earned</p>
-      <div class="exit-chips">${chips}</div>`;
-    sign.querySelectorAll('[data-open]').forEach((chip) => {
-      chip.addEventListener('click', () => onOpen(Number(chip.dataset.open)));
-    });
+      <header class="stage-head">
+        <span class="exit-tab">${stage.exit}</span>
+        <h3>${stage.name}</h3>
+        <span class="stage-count">${earned} / ${members.length}</span>
+      </header>
+      <p class="stage-blurb">${stage.blurb}</p>
+      <div class="stage-meter"><div class="stage-meter-fill" style="width:${pct}%"></div></div>
+      <div class="stage-chips">${chips}</div>
+    `;
+    for (const chip of sign.querySelectorAll("[data-open]")) {
+      chip.addEventListener("click", () => onOpen(byId.get(Number(chip.dataset.open))));
+    }
     container.appendChild(sign);
   }
 }

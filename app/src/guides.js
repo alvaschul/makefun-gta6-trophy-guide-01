@@ -1,107 +1,99 @@
-// guides.js — the trophy detail view: one mile marker, up close.
+// guides.js — the trophy detail view.
 //
-// The overlay shows the official description, the kind and grade,
-// the missable flag when there is one, the strategy guide in this
-// project's own words, the sources line, a working target counter
-// for grind trophies, and the same earned toggle as the card —
-// all driven through hooks supplied by main.js so this module
-// never touches storage directly.
+// Clicking a mile-marker card opens this overlay: the official
+// description in full, the trophy's kind and grade, its missable flag
+// when it carries one, the target counter when it has one, the guide
+// written for PLATINUM ROAD, and the sources line. The spoiler shield
+// applies here too — an unearned story trophy stays masked until it
+// is earned, even in its own detail view.
 
-import { formatCount } from './tracker.js';
+export const GRADE_LABEL = {
+  platinum: "Platinum",
+  gold: "Gold",
+  silver: "Silver",
+  bronze: "Bronze",
+};
 
-let overlayEl = null;
-let bodyEl = null;
-let hooks = null;
-let currentId = null;
+export const KIND_LABEL = {
+  story: "Story",
+  collectibles: "Collectibles",
+  activities: "Activities",
+  online: "Online",
+};
 
-function esc(text) {
-  return String(text)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+export const SOURCES_LINE = "Official PS5 trophy list via Exophase and PSNProfiles.";
+
+export function isMasked(trophy, store) {
+  return store.shield() && trophy.kind === "story" && !store.isEarned(trophy.id);
 }
 
-function gradeLabel(grade) {
-  return grade.charAt(0).toUpperCase() + grade.slice(1);
+export function displayName(trophy, store) {
+  return isMasked(trophy, store) ? "SPOILER SEALED" : trophy.name;
 }
 
-function renderDetail() {
-  if (currentId === null || !hooks) return;
-  const trophy = hooks.getTrophy(currentId);
-  if (!trophy) return;
-  const earned = hooks.isEarned(trophy.id);
-  const masked = hooks.isMasked(trophy);
-  const name = masked ? '— masked by the Spoiler Shield —' : trophy.name;
-  const desc = masked
-    ? 'This story trophy is still unearned, so the Spoiler Shield is hiding what it is. Earn it in game, or switch the shield off in the dash panel.'
+export function displayDescription(trophy, store) {
+  return isMasked(trophy, store)
+    ? "This story trophy is sealed by the spoiler shield. Earn it — or switch the shield off — to read what it asks for."
     : trophy.description;
+}
 
-  let counterHtml = '';
-  if (trophy.target) {
-    const value = hooks.getCount(trophy.id);
-    counterHtml = `
-      <div class="counter-row">
-        <button type="button" class="counter-btn" id="dCountDown" aria-label="Decrease counter">−</button>
-        <span class="counter-val"><b>${esc(formatCount(trophy, value))}</b> / ${esc(formatCount(trophy, trophy.target.goal))} ${esc(trophy.target.unit)}</span>
-        <button type="button" class="counter-btn" id="dCountUp" aria-label="Increase counter">+</button>
-      </div>`;
-  }
+export function formatTargetValue(trophy, value) {
+  const target = trophy.target;
+  const shown = (target.prefix ?? "") + value.toLocaleString("en-US") + (target.unit ?? "");
+  const total = (target.prefix ?? "") + target.total.toLocaleString("en-US") + (target.unit ?? "");
+  return `${shown} / ${total}`;
+}
 
-  bodyEl.innerHTML = `
-    <p class="d-grade">Mile ${trophy.id} · ${esc(gradeLabel(trophy.grade))} · ${esc(trophy.kind)}</p>
-    <h3 class="d-name" id="dName">${esc(name)}</h3>
-    <p class="d-desc">${esc(desc)}</p>
-    <div class="d-meta">
-      <span class="chip chip-kind">${esc(trophy.kind)}</span>
-      <span class="chip">${esc(gradeLabel(trophy.grade))}</span>
-      ${trophy.missable ? '<span class="chip chip-miss">Missable watch</span>' : ''}
-      ${earned ? '<span class="chip">Earned</span>' : ''}
-    </div>
-    <h4 class="d-guide-title">The Guide</h4>
-    <p class="d-guide">${esc(trophy.guide)}</p>
-    <p class="d-source">Source: official PS5 trophy list — via Exophase and PSNProfiles.</p>
-    <div class="d-actions">
-      <button type="button" class="d-earn-btn${earned ? ' is-earned' : ''}" id="dEarnBtn">${earned ? 'Earned — tap to unmark' : 'Mark as earned'}</button>
-      ${counterHtml}
+function counterHtml(trophy, store) {
+  if (!trophy.target) return "";
+  const value = store.counter(trophy.id);
+  return `
+    <div class="detail-counter">
+      <p class="counter-label">${trophy.target.label}: <strong>${formatTargetValue(trophy, value)}</strong></p>
+      <div class="counter-btns">
+        <button type="button" class="stepper" data-step="-1" aria-label="Decrease ${trophy.target.label}">−</button>
+        <button type="button" class="stepper" data-step="1" aria-label="Increase ${trophy.target.label}">+</button>
+      </div>
     </div>`;
+}
 
-  document.getElementById('dEarnBtn').addEventListener('click', () => {
-    hooks.onToggleEarned(trophy.id);
-    renderDetail();
+export function openDetail({ overlay, card }, trophy, store, { onToggleEarned }) {
+  const masked = isMasked(trophy, store);
+  const earned = store.isEarned(trophy.id);
+  card.innerHTML = `
+    <button type="button" class="detail-close" data-close aria-label="Close detail view">×</button>
+    <p class="detail-grade grade-${trophy.grade}">${GRADE_LABEL[trophy.grade]} · ${KIND_LABEL[trophy.kind]}${trophy.missable ? ' · <span class="watch-flag">MISSABLE WATCH</span>' : ""}</p>
+    <h3 id="detailName" class="${masked ? "masked-name" : ""}">${displayName(trophy, store)}</h3>
+    <p class="detail-desc ${masked ? "masked-desc" : ""}">${displayDescription(trophy, store)}</p>
+    ${masked ? "" : `<div class="detail-guide"><h4>The Guide</h4><p>${trophy.guide}</p></div>`}
+    ${counterHtml(trophy, store)}
+    <p class="detail-sources">${SOURCES_LINE}</p>
+    <button type="button" class="dash-btn detail-toggle" data-toggle>${earned ? "Mark as unearned" : "Stamp it EARNED"}</button>
+  `;
+  overlay.hidden = false;
+
+  const close = () => {
+    overlay.hidden = true;
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (event) => {
+    if (event.key === "Escape") close();
+  };
+  document.addEventListener("keydown", onKey);
+  overlay.onclick = (event) => {
+    if (event.target === overlay) close();
+  };
+  card.querySelector("[data-close]").addEventListener("click", close);
+  card.querySelector("[data-toggle]").addEventListener("click", () => {
+    onToggleEarned(trophy.id);
+    close();
   });
-  if (trophy.target) {
-    document.getElementById('dCountDown').addEventListener('click', () => {
-      hooks.onSetCount(trophy.id, hooks.getCount(trophy.id) - trophy.target.step);
-      renderDetail();
-    });
-    document.getElementById('dCountUp').addEventListener('click', () => {
-      hooks.onSetCount(trophy.id, hooks.getCount(trophy.id) + trophy.target.step);
-      renderDetail();
+  for (const button of card.querySelectorAll(".stepper")) {
+    button.addEventListener("click", () => {
+      store.bumpCounter(trophy, Number(button.dataset.step));
+      const label = card.querySelector(".counter-label strong");
+      if (label) label.textContent = formatTargetValue(trophy, store.counter(trophy.id));
     });
   }
-}
-
-export function initDetail(overlay, body, closeButton, detailHooks) {
-  overlayEl = overlay;
-  bodyEl = body;
-  hooks = detailHooks;
-  closeButton.addEventListener('click', closeDetail);
-  overlayEl.addEventListener('click', (event) => {
-    if (event.target === overlayEl) closeDetail();
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !overlayEl.hidden) closeDetail();
-  });
-}
-
-export function openDetail(id) {
-  currentId = id;
-  renderDetail();
-  overlayEl.hidden = false;
-}
-
-export function closeDetail() {
-  overlayEl.hidden = true;
-  currentId = null;
+  card.querySelector("[data-close]").focus();
 }
