@@ -1,95 +1,81 @@
-// roadmap.js — the six exits between you and the platinum.
-// Stages follow the order the game hands the list to a player:
-// the story opens the road, people fill it, the state sprawls,
-// the hustles grind, and the last mile is pure mop-up.
-
-import { trophyById, isEarned } from "./tracker.js";
-import { displayName } from "./guides.js";
+// roadmap.js — the six-stage route to the platinum, drawn as
+// highway exit signs. The stages order the whole list the way a
+// first playthrough actually unfolds: story first, then the
+// character strands, the collectors' loop, the activity grind,
+// and the final mile where the golds and the platinum wait.
 
 export const STAGES = [
   {
-    exit: "EXIT 1",
-    title: "First Tank of Gas",
-    desc: "The opening hours: the prologue and the first four chapters. Nothing here asks anything of you but to play the story and enjoy the ride.",
-    ids: [2, 3, 4, 5, 6],
+    exit: 'EXIT 1',
+    name: 'First Nights in Vice City',
+    blurb: 'The opening hours: Gone Fishing, Chapter 1, and a cocktail with a view before the city swallows you whole.',
+    trophyIds: [2, 3, 8, 44],
   },
   {
-    exit: "EXIT 2",
-    title: "The Named Jobs",
-    desc: "The campaign's set-piece missions — a breakfast run, a cartel heist, an airport takedown. All one-time story beats, all collected simply by finishing the plot.",
-    ids: [8, 9, 10, 11, 12, 13],
+    exit: 'EXIT 2',
+    name: 'The Story Freeway',
+    blurb: 'Chapters 2–4 and the big named missions — heists, takedowns and operations. Bank a save before each one.',
+    trophyIds: [4, 5, 6, 9, 10, 11, 12, 13, 37, 48],
   },
   {
-    exit: "EXIT 3",
-    title: "Friends & Strangers",
-    desc: "Leonida's people: the stranger strands for Andy, Kenton, Billy, Randy, Tyrone and Bret. Clear each character's markers as they appear so no strand dries up.",
-    ids: [22, 23, 24, 25, 26, 27, 29],
+    exit: 'EXIT 3',
+    name: 'Friends & Final Favors',
+    blurb: 'Character strands and their final missions. Clear these as they appear — strand finals are the heart of the missable watch.',
+    trophyIds: [22, 23, 24, 25, 26, 27, 29],
   },
   {
-    exit: "EXIT 4",
-    title: "See All of Leonida",
-    desc: "The collection sweep: cards, meditation spots, WAiNK stops, vehicles and every one of the 52 areas. Slow down and tour the state like it owes you money.",
-    ids: [28, 30, 31, 35, 42],
+    exit: 'EXIT 4',
+    name: "Collectors' Causeway",
+    blurb: 'Cards, quiet spots, new vehicles and new views: the gatherer’s loop across all 52 areas of Leonida.',
+    trophyIds: [28, 30, 31, 35, 42, 54, 55],
   },
   {
-    exit: "EXIT 5",
-    title: "Side Hustles",
-    desc: "Everything the open world pays out: stunts, races, ranges, robberies, bowling, laundering and the long money counters. This is the grind exit — bring patience and a fast car.",
-    ids: [15, 16, 17, 18, 19, 20, 21, 32, 33, 34, 36, 37, 38, 39, 40, 41, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55],
+    exit: 'EXIT 5',
+    name: 'Leonida Playground',
+    blurb: 'Ranges, races, robberies and ridiculous feats — the activity grind, best driven with the counters running.',
+    trophyIds: [15, 16, 17, 18, 19, 20, 21, 32, 33, 34, 36, 38, 39, 40, 41, 43, 45, 46, 47, 49, 50, 51, 52, 53],
   },
   {
-    exit: "EXIT 6",
-    title: "The Last Mile",
-    desc: "The finale and the bookkeeping: the last mission, the choices you logged along the way, the 100% completion line — and the platinum waiting at the end of the road.",
-    ids: [7, 48, 49, 14, 1],
+    exit: 'EXIT 6',
+    name: 'The Final Mile',
+    blurb: 'The final mission, the 100% counter, and the legend stamp waiting at the end of the road.',
+    trophyIds: [7, 14, 1],
   },
 ];
 
-export function stageProgress(stage) {
-  const earned = stage.ids.filter((id) => isEarned(id)).length;
-  return { earned, total: stage.ids.length };
+function esc(text) {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
-export function renderRoadmap(container, onOpen) {
-  container.innerHTML = "";
+export function renderRoadmap(container, byId, store, onOpen) {
+  container.innerHTML = '';
   for (const stage of STAGES) {
-    const { earned, total } = stageProgress(stage);
-    const article = document.createElement("article");
-    article.className = "stage";
-
-    const sign = document.createElement("div");
-    sign.className = "stage-sign";
-    const num = document.createElement("span");
-    num.className = "stage-num";
-    num.textContent = stage.exit;
-    const title = document.createElement("h3");
-    title.className = "stage-title";
-    title.textContent = stage.title;
-    const prog = document.createElement("span");
-    prog.className = "stage-progress";
-    prog.textContent = `${earned}/${total}`;
-    sign.append(num, title, prog);
-
-    const desc = document.createElement("p");
-    desc.className = "stage-desc";
-    desc.textContent = stage.desc;
-
-    const chips = document.createElement("ul");
-    chips.className = "stage-chips";
-    for (const id of stage.ids) {
-      const trophy = trophyById(id);
-      if (!trophy) continue;
-      const li = document.createElement("li");
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "stage-chip" + (isEarned(id) ? " stage-chip-earned" : "");
-      btn.textContent = (isEarned(id) ? "✓ " : "") + displayName(trophy);
-      btn.addEventListener("click", () => onOpen(id));
-      li.appendChild(btn);
-      chips.appendChild(li);
-    }
-
-    article.append(sign, desc, chips);
-    container.appendChild(article);
+    const earnedHere = stage.trophyIds.filter((id) => store.isEarned(id)).length;
+    const pct = Math.round((earnedHere / stage.trophyIds.length) * 100);
+    const sign = document.createElement('article');
+    sign.className = 'exit-sign reveal';
+    const chips = stage.trophyIds
+      .map((id) => {
+        const trophy = byId.get(id);
+        if (!trophy) return '';
+        const cls = store.isEarned(id) ? 'exit-chip is-earned' : 'exit-chip';
+        return `<button type="button" class="${cls}" data-open="${id}">${esc(trophy.name)}</button>`;
+      })
+      .join('');
+    sign.innerHTML = `
+      <p class="exit-kicker">${esc(stage.exit)} · ${stage.trophyIds.length} trophies</p>
+      <h3 class="exit-name">${esc(stage.name)}</h3>
+      <p class="exit-blurb">${esc(stage.blurb)}</p>
+      <div class="exit-meter"><div class="exit-meter-fill" style="width:${pct}%"></div></div>
+      <p class="exit-count">${earnedHere} of ${stage.trophyIds.length} earned</p>
+      <div class="exit-chips">${chips}</div>`;
+    sign.querySelectorAll('[data-open]').forEach((chip) => {
+      chip.addEventListener('click', () => onOpen(Number(chip.dataset.open)));
+    });
+    container.appendChild(sign);
   }
 }

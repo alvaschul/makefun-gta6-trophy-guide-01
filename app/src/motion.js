@@ -1,38 +1,26 @@
-// motion.js — the small hours of the neon: reveal-on-scroll for the
-// panels and a careful respect for players who prefer it calm.
-// The sign's flicker-in lives in CSS; this file only decides when
-// sections light up as the drive brings them into view.
+// motion.js — small touches of life for the night highway.
+//
+// Sections and signs fade up as they roll into view, and that is
+// deliberately all: the neon flicker lives in CSS, and everything
+// here steps aside entirely for visitors who prefer reduced motion.
 
-const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-export function prefersReducedMotion() {
-  return REDUCED.matches;
-}
-
-export function armReveal(scope = document) {
-  const targets = scope.querySelectorAll(".reveal");
-  if (REDUCED.matches || !("IntersectionObserver" in window)) {
-    for (const el of targets) el.classList.add("lit");
+export function initMotion() {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const targets = document.querySelectorAll('.reveal');
+  if (reduced || !('IntersectionObserver' in window)) {
+    targets.forEach((el) => el.classList.add('is-in'));
     return;
   }
-  const io = new IntersectionObserver(
+  const observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
-          entry.target.classList.add("lit");
-          io.unobserve(entry.target);
+          entry.target.classList.add('is-in');
+          observer.unobserve(entry.target);
         }
       }
     },
-    { threshold: 0.08 },
+    { threshold: 0.06 }
   );
-  for (const el of targets) io.observe(el);
-}
-
-export function scrollToId(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  requestAnimationFrame(() => {
-    setTimeout(() => el.scrollIntoView({ block: "start", behavior: "auto" }), 60);
-  });
+  targets.forEach((el) => observer.observe(el));
 }

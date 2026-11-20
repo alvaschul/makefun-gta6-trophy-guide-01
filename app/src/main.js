@@ -1,236 +1,271 @@
-// main.js — ignition. Boots the tracker: loads the data, paints the
-// road, the watch, the roadmap and the checklist, then keeps every
-// panel honest whenever the save changes.
+// main.js — boots PLATINUM ROAD: loads the trophy data, builds the
+// store, paints the masthead stats, the checklist, the roadmap and
+// the missable watch, and wires the dash panel (search, filters,
+// spoiler shield, export / import) to all of it.
 
-import {
-  loadTrophies,
-  loadSave,
-  allTrophies,
-  isEarned,
-  getCount,
-  toggleEarned,
-  spoilerOn,
-  setSpoiler,
-  progress,
-  subscribe,
-  exportSave,
-  importSave,
-} from "./tracker.js";
-import {
-  GRADE_LABEL,
-  KIND_LABEL,
-  displayName,
-  displayDesc,
-  firstSentence,
-  isMasked,
-  openDetail,
-  wireDetail,
-  refreshDetail,
-} from "./guides.js";
-import { renderRoadmap } from "./roadmap.js";
-import { applyShotMode } from "./shots.js";
-import { armReveal } from "./motion.js";
+import { createStore, validateSave, blankState, formatCount } from './tracker.js';
+import { initDetail, openDetail } from './guides.js';
+import { renderRoadmap } from './roadmap.js';
+import { applyShotMode, finishShotMode } from './shots.js';
+import { initMotion } from './motion.js';
 
-const filters = { search: "", kind: "all", grade: "all", state: "all" };
-const $ = (id) => document.getElementById(id);
+const GRADES = ['platinum', 'gold', 'silver', 'bronze'];
 
-function matchesFilters(trophy) {
-  if (filters.kind !== "all" && trophy.kind !== filters.kind) return false;
-  if (filters.grade !== "all" && trophy.grade !== filters.grade) return false;
-  if (filters.state === "earned" && !isEarned(trophy.id)) return false;
-  if (filters.state === "unearned" && isEarned(trophy.id)) return false;
-  if (filters.search) {
-    const hay = `${trophy.name} ${trophy.description} ${trophy.guide}`.toLowerCase();
-    if (!hay.includes(filters.search)) return false;
-  }
-  return true;
+function esc(text) {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
-function paintProgress() {
-  const p = progress();
-  $("progressText").textContent = `${p.earned} of ${p.total} trophies · ${p.pct}%`;
-  $("roadFill").style.width = `${p.pct}%`;
-  $("roadBar").setAttribute("aria-valuenow", String(p.earned));
-  $("countPlatinum").textContent = `${p.perGrade.platinum.earned}/${p.perGrade.platinum.total}`;
-  $("countGold").textContent = `${p.perGrade.gold.earned}/${p.perGrade.gold.total}`;
-  $("countSilver").textContent = `${p.perGrade.silver.earned}/${p.perGrade.silver.total}`;
-  $("countBronze").textContent = `${p.perGrade.bronze.earned}/${p.perGrade.bronze.total}`;
-}
-
-function buildCard(trophy) {
-  const earned = isEarned(trophy.id);
-  const masked = isMasked(trophy);
-  const card = document.createElement("article");
-  card.className = "card" + (earned ? " is-earned" : "");
-  card.dataset.grade = trophy.grade;
-
-  const top = document.createElement("div");
-  top.className = "card-top";
-  const disc = document.createElement("button");
-  disc.type = "button";
-  disc.className = "marker-disc";
-  disc.textContent = "✓";
-  disc.title = earned ? "Mark as not earned" : "Mark as earned";
-  disc.setAttribute("aria-label", `${earned ? "Unmark" : "Mark"} ${trophy.name} as earned`);
-  disc.addEventListener("click", (event) => {
-    event.stopPropagation();
-    toggleEarned(trophy.id);
-  });
-  const grade = document.createElement("span");
-  grade.className = `card-grade card-grade-${trophy.grade}`;
-  grade.textContent = GRADE_LABEL[trophy.grade];
-  const kind = document.createElement("span");
-  kind.className = "card-kind";
-  kind.textContent = KIND_LABEL[trophy.kind];
-  top.append(disc, grade, kind);
-
-  const name = document.createElement("h3");
-  name.className = "card-name" + (masked ? " masked" : "");
-  name.textContent = displayName(trophy);
-
-  const desc = document.createElement("p");
-  desc.className = "card-desc" + (masked ? " masked" : "");
-  desc.textContent = displayDesc(trophy);
-
-  const guide = document.createElement("p");
-  guide.className = "card-guide";
-  guide.textContent = masked
-    ? "Guide hidden by the spoiler shield."
-    : firstSentence(trophy.guide);
-
-  const foot = document.createElement("div");
-  foot.className = "card-foot";
-  if (trophy.missable) {
-    const badge = document.createElement("span");
-    badge.className = "badge-missable";
-    badge.textContent = "⚠ Missable watch";
-    foot.appendChild(badge);
-  }
-  if (trophy.target) {
-    const counter = document.createElement("span");
-    counter.className = "card-counter";
-    counter.textContent = `${getCount(trophy.id).toLocaleString("en-US")} / ${trophy.target.goal.toLocaleString("en-US")}`;
-    foot.appendChild(counter);
-  }
-
-  const stamp = document.createElement("span");
-  stamp.className = "stamp";
-  stamp.textContent = "EARNED";
-
-  card.append(top, name, desc, guide, foot, stamp);
-  card.addEventListener("click", () => openDetail(trophy.id));
-  return card;
-}
-
-function paintGrid() {
-  const grid = $("trophyGrid");
-  grid.innerHTML = "";
-  const visible = allTrophies().filter(matchesFilters);
-  for (const trophy of visible) grid.appendChild(buildCard(trophy));
-  $("listCount").textContent = `— showing ${visible.length} of ${allTrophies().length}`;
-  const empty = $("emptyState");
-  empty.hidden = visible.length > 0;
-  if (visible.length === 0) {
-    $("emptyBody").textContent =
-      filters.kind === "online"
-        ? "Honest answer: the official list has no online trophies — all 55 are earned in the single-player game, so this filter has nothing to show."
-        : "No trophies match the current dash settings. Loosen a filter and the road fills up again.";
-  }
-}
-
-function paintWatch() {
-  const list = $("watchList");
-  list.innerHTML = "";
-  for (const trophy of allTrophies().filter((t) => t.missable)) {
-    const li = document.createElement("li");
-    li.className = "watch-item" + (isEarned(trophy.id) ? " is-earned" : "");
-    const btn = document.createElement("button");
-    btn.type = "button";
-    const dot = document.createElement("span");
-    dot.className = "watch-dot";
-    btn.append(dot, document.createTextNode(displayName(trophy)));
-    btn.addEventListener("click", () => openDetail(trophy.id));
-    li.appendChild(btn);
-    list.appendChild(li);
-  }
-}
-
-function paintAll() {
-  paintProgress();
-  paintWatch();
-  renderRoadmap($("roadmap"), openDetail);
-  paintGrid();
-  refreshDetail();
-  const toggle = $("spoilerToggle");
-  toggle.checked = spoilerOn();
-  $("spoilerState").textContent = spoilerOn() ? "ON" : "OFF";
-}
-
-let msgTimer = null;
-function dashMessage(text) {
-  const el = $("dashMsg");
-  el.textContent = text;
-  clearTimeout(msgTimer);
-  msgTimer = setTimeout(() => (el.textContent = ""), 4200);
-}
-
-function wireDash() {
-  $("searchInput").addEventListener("input", (e) => {
-    filters.search = e.target.value.trim().toLowerCase();
-    paintGrid();
-  });
-  $("kindFilter").addEventListener("change", (e) => {
-    filters.kind = e.target.value;
-    paintGrid();
-  });
-  $("gradeFilter").addEventListener("change", (e) => {
-    filters.grade = e.target.value;
-    paintGrid();
-  });
-  $("stateFilter").addEventListener("change", (e) => {
-    filters.state = e.target.value;
-    paintGrid();
-  });
-  $("spoilerToggle").addEventListener("change", (e) => setSpoiler(e.target.checked));
-  $("exportBtn").addEventListener("click", () => {
-    const blob = new Blob([exportSave()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "platinum-road-progress.json";
-    a.click();
-    URL.revokeObjectURL(url);
-    dashMessage("Progress exported — keep the file somewhere safe.");
-  });
-  $("importBtn").addEventListener("click", () => $("importFile").click());
-  $("importFile").addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    e.target.value = "";
-    if (!file) return;
-    try {
-      importSave(await file.text());
-      dashMessage("Progress imported. Welcome back to the road.");
-    } catch (err) {
-      dashMessage(err.message);
-    }
-  });
+function gradeLabel(grade) {
+  return grade.charAt(0).toUpperCase() + grade.slice(1);
 }
 
 async function boot() {
-  await loadTrophies();
-  loadSave();
-  wireDash();
-  wireDetail();
-  paintAll();
-  subscribe(paintAll);
-  for (const panel of document.querySelectorAll("main .panel")) panel.classList.add("reveal");
-  armReveal(document);
-  applyShotMode();
+  const els = {
+    roadFill: document.getElementById('roadFill'),
+    pctText: document.getElementById('pctText'),
+    gradeCounts: document.getElementById('gradeCounts'),
+    earnedLine: document.getElementById('earnedLine'),
+    q: document.getElementById('q'),
+    kind: document.getElementById('kindFilter'),
+    grade: document.getElementById('gradeFilter'),
+    state: document.getElementById('stateFilter'),
+    spoiler: document.getElementById('spoilerToggle'),
+    missableOnly: document.getElementById('missableToggle'),
+    exportBtn: document.getElementById('exportBtn'),
+    importFile: document.getElementById('importFile'),
+    resetBtn: document.getElementById('resetBtn'),
+    note: document.getElementById('dashNote'),
+    grid: document.getElementById('grid'),
+    empty: document.getElementById('emptyState'),
+    stages: document.getElementById('stageList'),
+    watch: document.getElementById('watchList'),
+    overlay: document.getElementById('detailOverlay'),
+    dBody: document.getElementById('dBody'),
+    dClose: document.getElementById('dClose'),
+  };
+
+  const response = await fetch('./data/trophies.json');
+  const data = await response.json();
+  const trophies = data.trophies;
+  const byId = new Map(trophies.map((t) => [t.id, t]));
+  const store = createStore(new Set(byId.keys()));
+
+  const shot = applyShotMode(store);
+  els.spoiler.checked = store.state.spoiler === true;
+
+  const isMasked = (trophy) =>
+    store.state.spoiler === true && trophy.kind === 'story' && !store.isEarned(trophy.id);
+
+  let noteTimer = null;
+  function showNote(text) {
+    els.note.textContent = text;
+    if (noteTimer) clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => {
+      els.note.textContent = '';
+    }, 5000);
+  }
+
+  function renderProgress() {
+    const earnedCount = trophies.filter((t) => store.isEarned(t.id)).length;
+    const pct = Math.round((earnedCount / trophies.length) * 100);
+    els.roadFill.style.width = pct + '%';
+    els.pctText.textContent = pct + '%';
+    els.gradeCounts.innerHTML = GRADES.map((grade) => {
+      const inGrade = trophies.filter((t) => t.grade === grade);
+      const got = inGrade.filter((t) => store.isEarned(t.id)).length;
+      return `<li class="gc-${grade}">${gradeLabel(grade)} <b>${got}/${inGrade.length}</b></li>`;
+    }).join('');
+    els.earnedLine.textContent =
+      earnedCount === trophies.length
+        ? 'Every mile driven — Leonida Legend status achieved.'
+        : `${earnedCount} of ${trophies.length} trophies earned · ${trophies.length - earnedCount} still down the road.`;
+  }
+
+  function currentFilters() {
+    return {
+      q: els.q.value.trim().toLowerCase(),
+      kind: els.kind.value,
+      grade: els.grade.value,
+      state: els.state.value,
+      missableOnly: els.missableOnly.checked,
+    };
+  }
+
+  function matches(trophy, f) {
+    if (f.kind !== 'all' && trophy.kind !== f.kind) return false;
+    if (f.grade !== 'all' && trophy.grade !== f.grade) return false;
+    if (f.state === 'earned' && !store.isEarned(trophy.id)) return false;
+    if (f.state === 'unearned' && store.isEarned(trophy.id)) return false;
+    if (f.missableOnly && !trophy.missable) return false;
+    if (f.q) {
+      const haystack = `${trophy.name} ${trophy.description} ${trophy.guide} ${trophy.kind}`.toLowerCase();
+      if (!haystack.includes(f.q)) return false;
+    }
+    return true;
+  }
+
+  function counterHtml(trophy) {
+    if (!trophy.target) return '';
+    const value = store.getCount(trophy.id);
+    return `
+      <div class="counter-row">
+        <button type="button" class="counter-btn" data-count="-1" data-id="${trophy.id}" aria-label="Decrease counter for ${esc(trophy.name)}">−</button>
+        <span class="counter-val"><b>${esc(formatCount(trophy, value))}</b> / ${esc(formatCount(trophy, trophy.target.goal))} ${esc(trophy.target.unit)}</span>
+        <button type="button" class="counter-btn" data-count="1" data-id="${trophy.id}" aria-label="Increase counter for ${esc(trophy.name)}">+</button>
+      </div>`;
+  }
+
+  function renderGrid() {
+    const f = currentFilters();
+    const visible = trophies.filter((t) => matches(t, f));
+    els.grid.innerHTML = '';
+    for (const trophy of visible) {
+      const earned = store.isEarned(trophy.id);
+      const masked = isMasked(trophy);
+      const card = document.createElement('div');
+      card.className = `marker grade-${trophy.grade} reveal${earned ? ' is-earned' : ''}`;
+      card.setAttribute('role', 'button');
+      card.tabIndex = 0;
+      card.setAttribute('aria-label', `${trophy.name} — open detail view`);
+      card.innerHTML = `
+        <span class="marker-tab">
+          <span class="marker-mile">${trophy.id}</span>
+          <span class="marker-grade">${esc(trophy.grade)}</span>
+        </span>
+        <span class="marker-body">
+          <span class="marker-name${masked ? ' masked-text' : ''}">${masked ? '████████' : esc(trophy.name)}</span>
+          <span class="marker-desc${masked ? ' masked-text' : ''}">${masked ? 'Hidden by the Spoiler Shield — earn it or switch the shield off.' : esc(trophy.description)}</span>
+          <span class="marker-meta">
+            <span class="chip chip-kind">${esc(trophy.kind)}</span>
+            ${trophy.missable ? '<span class="chip chip-miss">Missable watch</span>' : ''}
+          </span>
+          <span class="marker-guide">${esc(trophy.guide)}</span>
+          ${counterHtml(trophy)}
+        </span>
+        ${earned ? '<span class="stamp">Earned</span>' : ''}`;
+      card.addEventListener('click', () => openDetail(trophy.id));
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openDetail(trophy.id);
+        }
+      });
+      card.querySelectorAll('[data-count]').forEach((btn) => {
+        btn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const delta = Number(btn.dataset.count) * trophy.target.step;
+          store.setCount(trophy.id, store.getCount(trophy.id) + delta, trophy);
+          renderAll();
+        });
+      });
+      els.grid.appendChild(card);
+    }
+    if (visible.length === 0) {
+      const f2 = currentFilters();
+      els.empty.hidden = false;
+      els.empty.textContent =
+        f2.kind === 'online'
+          ? 'No trophies on the official PS5 list are online trophies — this road is driven solo, so the online filter honestly has nothing to show.'
+          : 'No mile markers match those dash settings. Loosen a filter or clear the search to see the road again.';
+    } else {
+      els.empty.hidden = true;
+    }
+  }
+
+  function renderWatch() {
+    els.watch.innerHTML = '';
+    for (const trophy of trophies.filter((t) => t.missable)) {
+      const earned = store.isEarned(trophy.id);
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = `watch-row reveal${earned ? ' is-earned' : ''}`;
+      row.innerHTML = `
+        <span>
+          <span class="watch-name">${esc(trophy.name)}</span><br>
+          <span class="watch-desc">${esc(trophy.description)}</span>
+        </span>
+        <span class="watch-state">${earned ? 'Earned' : 'Open'}</span>`;
+      row.addEventListener('click', () => openDetail(trophy.id));
+      els.watch.appendChild(row);
+    }
+  }
+
+  function renderAll() {
+    renderProgress();
+    renderGrid();
+    renderRoadmap(els.stages, byId, store, openDetail);
+    renderWatch();
+  }
+
+  initDetail(els.overlay, els.dBody, els.dClose, {
+    getTrophy: (id) => byId.get(id),
+    isEarned: (id) => store.isEarned(id),
+    isMasked,
+    getCount: (id) => store.getCount(id),
+    onToggleEarned: (id) => {
+      store.toggleEarned(id);
+      renderAll();
+    },
+    onSetCount: (id, value) => {
+      store.setCount(id, value, byId.get(id));
+      renderAll();
+    },
+  });
+
+  [els.q, els.kind, els.grade, els.state, els.missableOnly].forEach((control) => {
+    control.addEventListener('input', renderGrid);
+    control.addEventListener('change', renderGrid);
+  });
+  els.spoiler.addEventListener('change', () => {
+    store.setSpoiler(els.spoiler.checked);
+    renderAll();
+    showNote(els.spoiler.checked ? 'Spoiler Shield on — unearned story trophies are masked.' : 'Spoiler Shield off — everything is visible.');
+  });
+  els.exportBtn.addEventListener('click', () => {
+    const blob = new Blob([store.exportText()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'platinum-road-save.json';
+    link.click();
+    URL.revokeObjectURL(url);
+    showNote('Save exported as platinum-road-save.json.');
+  });
+  els.importFile.addEventListener('change', async () => {
+    const file = els.importFile.files[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const cleaned = validateSave(parsed, new Set(byId.keys()));
+      if (!cleaned) throw new Error('not a PLATINUM ROAD save');
+      store.replace(cleaned);
+      els.spoiler.checked = cleaned.spoiler;
+      renderAll();
+      showNote('Save imported — welcome back to the road.');
+    } catch {
+      showNote('That file is not a valid PLATINUM ROAD save; nothing was changed.');
+    }
+    els.importFile.value = '';
+  });
+  els.resetBtn.addEventListener('click', () => {
+    if (!window.confirm('Reset all progress, counters and settings?')) return;
+    store.replace(blankState());
+    els.spoiler.checked = false;
+    renderAll();
+    showNote('Progress reset — a fresh tank and an open road.');
+  });
+
+  renderAll();
+  finishShotMode(shot, openDetail);
+  initMotion();
 }
 
-boot().catch((err) => {
-  document.body.insertAdjacentHTML(
-    "afterbegin",
-    `<p style="padding:16px;text-align:center">The tracker could not load its trophy data: ${err.message}</p>`,
-  );
+boot().catch((error) => {
+  console.error('PLATINUM ROAD failed to start:', error);
+  const note = document.getElementById('dashNote');
+  if (note) note.textContent = 'The guide failed to load its trophy data. Try a hard refresh.';
 });

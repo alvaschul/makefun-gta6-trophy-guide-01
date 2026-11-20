@@ -1,59 +1,44 @@
-// shots.js — the ?shot= scenes used for the entry's screenshots.
-// Each scene stages a believable mid-drive moment on a TRANSIENT copy
-// of the save (nothing here is written to localStorage), so a visitor
-// who lands on a shot URL never inherits a stranger's progress.
+// shots.js — the ?shot= scenarios used for the screenshots.
+//
+// Each mode stages a believable mid-journey save directly in the
+// store's memory: the store is locked first, so staged progress is
+// never written over the visitor's real localStorage save. Real
+// visitors without a ?shot= parameter never see any of this.
 
-import { stageTransient } from "./tracker.js";
-import { openDetail } from "./guides.js";
-import { scrollToId } from "./motion.js";
+const CHECKLIST_EARNED = [2, 3, 8, 16, 21, 29, 44, 46]; // 8 of 55 ≈ 15%
+const SPOILER_EARNED = [2, 16, 21];
+const GUIDE_TROPHY_ID = 17; // The Shootist, silver, counter 27 / 42
+const GUIDE_COUNT = 27;
 
-const SCENES = {
-  // The cover: masthead, the road at 15%, the whole dash, and the
-  // first checklist cards with stamps and guide lines showing.
-  checklist() {
-    stageTransient((save) => {
-      for (const id of [2, 3, 4, 8, 9, 16, 21, 44]) save.earned[id] = true;
-    });
-    document.body.classList.add("in-shot", "shot-checklist");
-    window.scrollTo(0, 0);
-  },
+export function applyShotMode(store) {
+  const params = new URLSearchParams(window.location.search);
+  const shot = params.get('shot');
+  if (!shot) return null;
 
-  // The roadmap signs with a believable spread of stage progress.
-  roadmap() {
-    stageTransient((save) => {
-      for (const id of [2, 3, 4, 5, 8, 22, 23]) save.earned[id] = true;
-      save.counts[28] = 6;
-    });
-    document.body.classList.add("in-shot");
-    scrollToId("roadmapPanel");
-  },
+  document.body.classList.add('in-shot', `shot-${shot}`);
+  store.lock();
+  const state = store.state;
 
-  // A silver trophy's guide, open mid-grind: The Shootist at 27/42.
-  guide() {
-    stageTransient((save) => {
-      save.counts[17] = 27;
-      for (const id of [2, 3, 16, 21]) save.earned[id] = true;
-    });
-    document.body.classList.add("in-shot");
-    openDetail(17);
-  },
-
-  // The spoiler shield doing its job: story cards masked, toggle on.
-  spoiler() {
-    stageTransient((save) => {
-      save.spoiler = true;
-      for (const id of [15, 16, 30]) save.earned[id] = true;
-    });
-    document.body.classList.add("in-shot", "shot-spoiler");
-    scrollToId("dashPanel");
-  },
-};
-
-export function applyShotMode() {
-  const mode = new URLSearchParams(window.location.search).get("shot");
-  if (mode && SCENES[mode]) {
-    SCENES[mode]();
-    return mode;
+  if (shot === 'checklist' || shot === 'roadmap' || shot === 'guide') {
+    for (const id of CHECKLIST_EARNED) state.earned[id] = true;
   }
-  return null;
+  if (shot === 'guide') {
+    state.counts[GUIDE_TROPHY_ID] = GUIDE_COUNT;
+  }
+  if (shot === 'spoiler') {
+    state.spoiler = true;
+    for (const id of SPOILER_EARNED) state.earned[id] = true;
+  }
+  return shot;
+}
+
+export function finishShotMode(shot, openDetail) {
+  if (!shot) return;
+  if (shot === 'roadmap') {
+    const section = document.getElementById('roadmapSection');
+    if (section) section.scrollIntoView();
+  }
+  if (shot === 'guide') {
+    openDetail(GUIDE_TROPHY_ID);
+  }
 }
